@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Audio Player v2.2</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="app" class="player-container">
+    <!-- Header -->
+    <div class="p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white relative">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold">🎵 Audio Player v2.2</h1>
+                <p class="text-sm opacity-90 mt-1">Folder-Wise Playback</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="export-btn" class="control-btn text-xl" title="Export State">💾</button>
+                <button id="import-btn" class="control-btn text-xl" title="Import State">📥</button>
+                <button id="dark-mode-toggle" class="control-btn text-2xl">🌙</button>
+            </div>
+        </div>
+    </div>
+
+<!-- Add after header div, before "Now Playing" section -->
+<div class="px-6 py-2 bg-gray-50 text-xs text-gray-600 border-b">
+    <details>
+        <summary class="cursor-pointer hover:text-gray-800">⌨️ Keyboard Shortcuts</summary>
+        <div class="mt-2 grid grid-cols-2 gap-1">
+            <span><kbd class="px-1 bg-white rounded border">Space</kbd> Play/Pause</span>
+            <span><kbd class="px-1 bg-white rounded border">←</kbd> Previous</span>
+            <span><kbd class="px-1 bg-white rounded border">→</kbd> Next</span>
+            <span><kbd class="px-1 bg-white rounded border">S</kbd> Shuffle</span>
+            <span><kbd class="px-1 bg-white rounded border">R</kbd> Repeat</span>
+            <span><kbd class="px-1 bg-white rounded border">M</kbd> Mute</span>
+            <span><kbd class="px-1 bg-white rounded border">F</kbd> Favorite</span>
+			<span><kbd class="px-1 bg-white rounded border">Z</kbd> Search</span>
+        </div>
+    </details>
+</div>
+
+    <!-- Now Playing -->
+    <div class="p-6 border-b">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex-1 min-w-0">
+                <h2 id="current-track-title" class="text-xl font-semibold text-gray-800 truncate">No track selected</h2>
+                <p id="track-metadata" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="favorite-btn" class="favorite-btn text-2xl" title="Add to Favorites">🤍</button>
+                <div id="file-source-tag" class="text-xs font-medium px-3 py-1 rounded-full bg-gray-200 text-gray-600">Idle</div>
+            </div>
+        </div>
+        
+        <!-- Current Folder Badge -->
+        <div id="current-folder-badge" class="mb-3 hidden">
+            <span class="folder-badge">📁 <span id="folder-name-display"></span></span>
+            <button id="clear-folder-mode" class="ml-2 text-xs text-red-600 hover:text-red-700 underline">Clear folder mode</button>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="mb-2">
+            <input type="range" id="progress-bar" class="progress-bar" value="0" max="100" disabled>
+        </div>
+        <div class="flex justify-between text-xs text-gray-500 mb-4">
+            <span id="current-time">0:00</span>
+            <span id="duration">0:00</span>
+        </div>
+
+        <!-- Audio Players -->
+        <audio id="audio-player" class="hidden" preload="metadata"></audio>
+        <div id="drive-player-container" class="w-full hidden mb-4">
+            <!-- Line 59 - Replace entire iframe tag -->
+			<iframe id="drive-player-frame" width="100%" height="80" 
+					allow="autoplay" 
+					sandbox="allow-same-origin allow-scripts">
+			</iframe>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="shuffle-btn" class="control-btn text-gray-600 hover:text-blue-600" title="Shuffle">🔀</button>
+                <button id="prev-btn" class="control-btn text-2xl text-gray-700 hover:text-blue-600" title="Previous">⏮️</button>
+                <button id="play-pause-btn" class="control-btn text-4xl text-blue-600 hover:text-blue-700" title="Play/Pause">▶️</button>
+                <button id="next-btn" class="control-btn text-2xl text-gray-700 hover:text-blue-600" title="Next">⏭️</button>
+                <button id="repeat-btn" class="control-btn text-gray-600 hover:text-blue-600" title="Repeat Off">🔁</button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button id="volume-btn" class="control-btn text-xl" title="Mute/Unmute">🔊</button>
+                <input type="range" id="volume-slider" class="volume-slider" value="100" max="100">
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Selection -->
+    <div class="p-6 border-b">
+        <div class="flex flex-wrap gap-3">
+            <input type="file" id="local-folder-input" webkitdirectory directory multiple class="hidden">
+            <input type="file" id="import-file-input" accept=".json" class="hidden">
+            <button id="load-folder-btn" class="flex-1 min-w-max bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow-md transition">
+                📂 Load Local Folder
+            </button>
+            <button id="browse-folders-btn" class="flex-1 min-w-max bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg shadow-md transition">
+                🗂️ Browse Drive Folders
+            </button>
+            <button id="clear-playlist-btn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg shadow-md transition">
+                🗑️ Clear
+            </button>
+        </div>
+        
+        <div class="mt-4">
+            <label for="apps-script-url-input" class="block text-sm font-medium text-gray-700 mb-1">
+                Apps Script URL
+            </label>
+            <input type="url" id="apps-script-url-input" 
+                   placeholder="https://script.google.com/macros/s/AKfycbxbD-WihJJuiDq8QKiqmhh95kqeJwWVaBpZWygT0ia4iED4UcFX-T4X-74YLghPLx1R/exec" 
+                   class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mt-4 border-b border-gray-300">
+            <button class="tab-btn active px-4 py-2 text-sm font-medium transition" data-tab="all">All Tracks</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium transition" data-tab="favorites">Favorites</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium transition" data-tab="recent">Recently Played</button>
+        </div>
+
+        <!-- Search -->
+        <div class="mt-4 relative">
+            <input type="text" id="search-input" placeholder="🔍 Search tracks..." 
+                   class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+            <div id="search-results-count" class="text-xs text-gray-500 mt-1 hidden"></div>
+        </div>
+
+        <div id="status-message" class="mt-4 p-3 text-sm rounded-lg hidden"></div>
+    </div>
+
+    <!-- Folder Browser Modal -->
+    <div id="folder-browser-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">📁 Browse Drive Folders</h3>
+                <button id="close-browser-btn" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-6 border-b">
+                <button id="drive-browse-btn" class="w-full py-2 px-4 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">
+                    ☁️ Load Folder Structure
+                </button>
+                
+                <!-- Breadcrumb -->
+                <div id="breadcrumb" class="flex items-center gap-2 text-sm text-gray-600 mt-4 mb-3 overflow-x-auto whitespace-nowrap pb-2">
+                    <span class="font-medium">📍 Current Path:</span>
+                    <span id="current-path" class="text-blue-600">/</span>
+                </div>
+                
+                <!-- Folder stats -->
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span id="folder-stats">Select a folder to see stats</span>
+                </div>
+            </div>
+            
+            <div id="folder-list" class="flex-1 overflow-y-auto p-6 custom-scroll">
+                <p class="text-gray-500 text-center py-8">Click "Load Folder Structure" to browse</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist -->
+    <div class="p-6">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-medium text-gray-700">
+                <span id="tab-title">All Tracks</span> (<span id="track-count">0</span>)
+            </h3>
+            <div class="flex gap-2">
+                <button id="sort-btn" class="text-sm text-blue-600 hover:text-blue-700 font-medium">Sort A-Z</button>
+            </div>
+        </div>
+        <div id="playlist-container" class="space-y-1 max-h-80 overflow-y-auto custom-scroll">
+            <p id="empty-playlist" class="text-gray-500 text-center py-8">Browse folders to load music 🎵</p>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Modules -->
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/player.js"></script>
+<script src="js/playlist.js"></script>
+<script src="js/folder-browser.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>

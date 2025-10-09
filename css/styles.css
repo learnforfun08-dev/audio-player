@@ -1,0 +1,256 @@
+/* Main Styles */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+    transition: background 0.3s ease;
+}
+
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.player-container {
+    background-color: #ffffff;
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    max-width: 700px;
+    width: 100%;
+    overflow: hidden;
+    transition: background-color 0.3s ease;
+}
+
+.dark-mode .player-container {
+    background-color: #1f2937;
+}
+
+/* Playlist Items */
+.playlist-item {
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.playlist-item:hover {
+    background-color: #f1f5f9;
+    transform: translateX(4px);
+}
+
+.dark-mode .playlist-item:hover {
+    background-color: #374151;
+}
+
+.playlist-item.active {
+    background-color: #dbeafe;
+    border-left: 4px solid #3b82f6;
+    font-weight: 600;
+}
+
+.dark-mode .playlist-item.active {
+    background-color: #1e3a8a;
+    border-left: 4px solid #60a5fa;
+}
+
+/* Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.dark-mode .custom-scroll::-webkit-scrollbar-thumb {
+    background: #4b5563;
+}
+
+/* Controls */
+.progress-bar, .volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e7eb;
+}
+
+.progress-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.progress-bar::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.volume-slider {
+    width: 100px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e5e7eb;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+}
+
+.control-btn {
+    transition: all 0.2s;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+}
+
+.control-btn:hover {
+    transform: scale(1.1);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Dark Mode Text Colors */
+.dark-mode .text-gray-800 { color: #f3f4f6 !important; }
+.dark-mode .text-gray-700 { color: #d1d5db !important; }
+.dark-mode .text-gray-500 { color: #9ca3af !important; }
+.dark-mode .bg-gray-200 { background-color: #374151 !important; }
+.dark-mode .border-gray-300 { border-color: #4b5563 !important; }
+.dark-mode input { background-color: #374151; color: #f3f4f6; }
+
+/* Player Frame */
+#drive-player-frame {
+    border: none;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.dark-mode #drive-player-frame {
+    background: #374151;
+}
+
+/* Favorite Button */
+.favorite-btn {
+    transition: all 0.2s;
+}
+
+.favorite-btn.active {
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #1f2937;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease;
+    z-index: 1000;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Modal */
+#folder-browser-modal {
+    backdrop-filter: blur(4px);
+}
+
+.dark-mode #folder-browser-modal > div {
+    background-color: #1f2937 !important;
+}
+
+/* Folder Items */
+.folder-item, .file-item {
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.folder-item:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.dark-mode .folder-item:hover {
+    background-color: #1e3a8a;
+}
+
+.file-item:hover {
+    background-color: #f1f5f9;
+}
+
+.dark-mode .file-item:hover {
+    background-color: #374151;
+}
+
+/* Tabs */
+.tab-btn.active {
+    border-bottom: 2px solid #3b82f6;
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.tab-btn:hover {
+    color: #3b82f6;
+}
+
+/* Folder Badge */
+.folder-badge {
+    display: inline-block;
+    background: #f59e0b;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
