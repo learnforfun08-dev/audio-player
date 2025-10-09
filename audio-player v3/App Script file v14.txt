@@ -1,0 +1,421 @@
+﻿/**
+ * Enhanced Apps Script for Audio Player v2.2
+ * Compatible with folder browsing, recursive scanning, and metadata enrichment
+ * 
+ * SETUP INSTRUCTIONS:
+ * 1. Replace FOLDER_ID with your Google Drive folder ID
+ * 2. Ensure all audio files have sharing set to "Anyone with the link can view"
+ * 3. Deploy as Web App:
+ *    - Execute as: "Me"
+ *    - Who has access: "Anyone"
+ * 4. (Optional) Set API_KEY for additional security
+ * 5. Copy the deployment URL to your HTML player
+ */ 
+
+const FOLDER_ID = '1F2nd9x0dmNzeoqhYZllFqM7lniOSzQke';
+const API_KEY = ''; // Optional: Add security key
+const CACHE_DURATION = 300; // Cache results for 5 minutes
+
+function doGet(e) {
+  try {
+    // Optional API key validation
+    if (API_KEY && e.parameter.key !== API_KEY) {
+      return createJsonResponse({ 
+        status: 'error',
+        error: 'Unauthorized. Invalid or missing API key.' 
+      }, 401);
+    }
+
+    // Route based on mode parameter
+    const mode = e.parameter.mode || 'flat';
+    
+    switch(mode) {
+      case 'folders':
+        return getFolderStructure();
+      case 'flat':
+      default:
+        return getAllTracks();
+    }
+
+  } catch (error) {
+    Logger.log('Error in doGet: ' + error.toString());
+    Logger.log('Stack trace: ' + error.stack);
+    
+    return createJsonResponse({ 
+      status: 'error',
+      error: error.toString(),
+      message: 'Failed to load files from Drive. Check folder permissions and ID.',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+}
+
+function getStreamUrl(fileId) {
+  if (!fileId) {
+    return createJsonResponse({
+      status: 'error',
+      error: 'Missing fileId parameter'
+    }, 400);
+  }
+  
+  try {
+    const file = DriveApp.getFileById(fileId);
+    
+    // Ensure file is shared
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingError) {
+      Logger.log('Cannot set sharing for: ' + file.getName());
+    }
+    
+    const fileSize = file.getSize();
+    
+    // Return multiple URL options
+    const response = {
+      status: 'success',
+      fileId: fileId,
+      name: file.getName(),
+      size: formatBytes(fileSize),
+      sizeBytes: fileSize, // CRITICAL: Return as number
+      mimeType: file.getMimeType(),
+      streamUrl: `https://drive.google.com/uc?export=download&id=${fileId}`,
+      alternativeUrls: {
+        preview: `https://drive.google.com/file/d/${fileId}/preview`,
+        confirmed: `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`,
+        view: `https://drive.google.com/file/d/${fileId}/view`
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    return createJsonResponse(response);
+    
+  } catch (error) {
+    Logger.log('Error getting stream URL: ' + error.toString());
+    return createJsonResponse({
+      status: 'error',
+      error: error.toString(),
+      message: 'Failed to get stream URL. File may not exist or is not accessible.',
+      fileId: fileId
+    }, 404);
+  }
+}
+
+/**
+ * Get all tracks in a flat list (default mode)
+ * Returns all audio files with full metadata
+ */
+function getAllTracks() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'flat_tracks_' + FOLDER_ID;
+  const cached = cache.get(cacheKey);
+  
+  if (cached) {
+    Logger.log('Returning cached flat list');
+    return ContentService.createTextOutput(cached)
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const folder = DriveApp.getFolderById(FOLDER_ID);
+  const playlist = [];
+  let errorCount = 0;
+  
+  function scanFolder(folder, path = '') {
+    try {
+      const query = "mimeType contains 'audio/' and trashed = false";
+      const files = folder.searchFiles(query);
+      
+      while (files.hasNext()) {
+        try {
+          const file = files.next();
+          const fileName = file.getName();
+          
+          if (isAudioFile(fileName)) {
+            try {
+              file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            } catch (sharingError) {
+              Logger.log('Cannot set sharing for: ' + fileName);
+              errorCount++;
+            }
+            
+            const fileId = file.getId();
+            const fileSize = file.getSize(); // Get size once
+            const fullPath = path ? path + '/' + fileName : fileName;
+            
+            playlist.push({
+              name: fullPath,
+              url: `https://drive.google.com/file/d/${fileId}/preview`,
+              fileId: fileId,
+              source: 'Apps Script API',
+              size: formatBytes(fileSize), // Human-readable string
+              sizeBytes: fileSize, // CRITICAL: Raw number in bytes
+              dateAdded: file.getDateCreated().toISOString(),
+              lastModified: file.getLastUpdated().toISOString(),
+              mimeType: file.getMimeType(),
+              folderPath: path,
+              owner: getOwnerEmail(file)
+            });
+          }
+        } catch (fileError) {
+          Logger.log('Error processing file: ' + fileError.toString());
+          errorCount++;
+        }
+      }
+      
+      const subfolders = folder.getFolders();
+      while (subfolders.hasNext()) {
+        const subfolder = subfolders.next();
+        const subPath = path ? path + '/' + subfolder.getName() : subfolder.getName();
+        scanFolder(subfolder, subPath);
+      }
+    } catch (folderError) {
+      Logger.log('Error scanning folder: ' + folderError.toString());
+      errorCount++;
+    }
+  }
+  
+  scanFolder(folder);
+  
+  const response = {
+    status: 'success',
+    count: playlist.length,
+    tracks: playlist.sort((a, b) => a.name.localeCompare(b.name)),
+    timestamp: new Date().toISOString(),
+    rootFolder: folder.getName(),
+    errors: errorCount > 0 ? `${errorCount} files had access issues` : null
+  };
+  
+  const jsonOutput = JSON.stringify(response);
+  cache.put(cacheKey, jsonOutput, CACHE_DURATION);
+  
+  return createJsonResponse(response);
+}
+
+/**
+ * Get hierarchical folder structure for browser mode
+ * Returns nested folder/file structure with metadata
+ */
+function getFolderStructure() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'folder_structure_' + FOLDER_ID;
+  const cached = cache.get(cacheKey);
+  
+  if (cached) {
+    Logger.log('Returning cached folder structure');
+    return ContentService.createTextOutput(cached)
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const rootFolder = DriveApp.getFolderById(FOLDER_ID);
+  
+  function buildStructure(folder) {
+    const structure = {
+      name: folder.getName(),
+      id: folder.getId(),
+      folders: {},
+      files: [],
+      audioCount: 0,
+      totalSize: 0
+    };
+    
+    try {
+      const query = "mimeType contains 'audio/' and trashed = false";
+      const files = folder.searchFiles(query);
+      
+      while (files.hasNext()) {
+        try {
+          const file = files.next();
+          const fileName = file.getName();
+          
+          if (isAudioFile(fileName)) {
+            try {
+              file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            } catch (sharingError) {
+              Logger.log('Cannot set sharing for: ' + fileName);
+            }
+            
+            const fileId = file.getId();
+            const fileSize = file.getSize(); // Get size once
+            
+            structure.files.push({
+              name: fileName,
+              url: `https://drive.google.com/file/d/${fileId}/preview`,
+              fileId: fileId,
+              source: 'Apps Script API',
+              size: formatBytes(fileSize), // Human-readable string
+              sizeBytes: fileSize, // CRITICAL: Raw number in bytes
+              dateAdded: file.getDateCreated().toISOString(),
+              lastModified: file.getLastUpdated().toISOString(),
+              mimeType: file.getMimeType(),
+              owner: getOwnerEmail(file)
+            });
+            
+            structure.audioCount++;
+            structure.totalSize += fileSize;
+          }
+        } catch (fileError) {
+          Logger.log('Error processing file: ' + fileError.toString());
+        }
+      }
+      
+      structure.files.sort((a, b) => a.name.localeCompare(b.name));
+      
+      const subfolders = folder.getFolders();
+      while (subfolders.hasNext()) {
+        try {
+          const subfolder = subfolders.next();
+          const subStructure = buildStructure(subfolder);
+          structure.folders[subfolder.getName()] = subStructure;
+          structure.audioCount += subStructure.audioCount;
+          structure.totalSize += subStructure.totalSize;
+        } catch (subfolderError) {
+          Logger.log('Error processing subfolder: ' + subfolderError.toString());
+        }
+      }
+      
+    } catch (error) {
+      Logger.log('Error building structure: ' + error.toString());
+    }
+    
+    return structure;
+  }
+  
+  const folderStructure = buildStructure(rootFolder);
+  
+  const response = {
+    status: 'success',
+    folders: folderStructure,
+    totalAudioFiles: folderStructure.audioCount,
+    totalSize: formatBytes(folderStructure.totalSize),
+    totalSizeBytes: folderStructure.totalSize, // ADDED: Raw number
+    timestamp: new Date().toISOString()
+  };
+  
+  const jsonOutput = JSON.stringify(response);
+  cache.put(cacheKey, jsonOutput, CACHE_DURATION);
+  
+  return createJsonResponse(response);
+}
+
+/**
+ * Helper: Check if file is a supported audio format
+ */
+function isAudioFile(fileName) {
+  const supportedExtensions = [
+    '.mp3', '.wav', '.ogg', '.flac', 
+    '.m4a', '.aac', '.opus', '.wma', 
+    '.webm', '.mp4'
+  ];
+  const lowerName = fileName.toLowerCase();
+  return supportedExtensions.some(ext => lowerName.endsWith(ext));
+}
+
+/**
+ * Helper: Format bytes to human-readable size
+ */
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+/**
+ * Helper: Get file owner email (safely)
+ */
+function getOwnerEmail(file) {
+  try {
+    return file.getOwner().getEmail();
+  } catch (e) {
+    return 'Unknown';
+  }
+}
+
+/**
+ * Helper: Create JSON response with proper headers
+ */
+function createJsonResponse(data, statusCode = 200) {
+  if (statusCode !== 200) {
+    data.httpStatus = statusCode;
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Utility: Clear cache manually
+ */
+function clearCache() {
+  const cache = CacheService.getScriptCache();
+  cache.removeAll(['flat_tracks_' + FOLDER_ID, 'folder_structure_' + FOLDER_ID]);
+  Logger.log('Cache cleared successfully');
+}
+
+/**
+ * Test function - Run this to verify your setup
+ */
+function testScript() {
+  Logger.log('=== TESTING APPS SCRIPT SETUP v2.2 ===\n');
+  
+  try {
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    Logger.log('✓ Folder access: OK');
+    Logger.log('  Folder name: ' + folder.getName());
+  } catch (e) {
+    Logger.log('✗ Folder access: FAILED');
+    Logger.log('  Error: ' + e.toString());
+    return;
+  }
+  
+  Logger.log('\n=== Testing Flat List Mode ===');
+  try {
+    const flatResult = doGet({ parameter: {} });
+    const flatContent = flatResult.getContent();
+    const flatData = JSON.parse(flatContent);
+    
+    if (flatData.status === 'success') {
+      Logger.log('✓ Flat mode: OK');
+      Logger.log('  Total tracks found: ' + flatData.count);
+      if (flatData.count > 0) {
+        const sample = flatData.tracks[0];
+        Logger.log('  Sample track: ' + sample.name);
+        Logger.log('  Size (bytes): ' + sample.sizeBytes + ' [Type: ' + typeof sample.sizeBytes + ']');
+        Logger.log('  Size (formatted): ' + sample.size);
+      }
+    } else {
+      Logger.log('✗ Flat mode: ERROR - ' + flatData.error);
+    }
+  } catch (e) {
+    Logger.log('✗ Flat mode: EXCEPTION - ' + e.toString());
+  }
+  
+  Logger.log('\n=== Testing Folder Structure Mode ===');
+  try {
+    const folderResult = doGet({ parameter: { mode: 'folders' } });
+    const folderContent = folderResult.getContent();
+    const folderData = JSON.parse(folderContent);
+    
+    if (folderData.status === 'success') {
+      Logger.log('✓ Folder mode: OK');
+      Logger.log('  Total audio files: ' + folderData.totalAudioFiles);
+      Logger.log('  Total size: ' + folderData.totalSize);
+      Logger.log('  Total size (bytes): ' + folderData.totalSizeBytes);
+      Logger.log('  Root folder: ' + folderData.folders.name);
+      
+      // Check first file in structure
+      if (folderData.folders.files && folderData.folders.files.length > 0) {
+        const firstFile = folderData.folders.files[0];
+        Logger.log('  First file: ' + firstFile.name);
+        Logger.log('  Size (bytes): ' + firstFile.sizeBytes + ' [Type: ' + typeof firstFile.sizeBytes + ']');
+      }
+    } else {
+      Logger.log('✗ Folder mode: ERROR - ' + folderData.error);
+    }
+  } catch (e) {
+    Logger.log('✗ Folder mode: EXCEPTION - ' + e.toString());
+  }
+  
+  Logger.log('\n=== TEST COMPLETE ===');
+}
