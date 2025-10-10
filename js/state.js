@@ -15,7 +15,9 @@ const AppState = {
     currentTab: 'all',
     darkMode: false,
     volume: 100,
-    appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwq4uqQu2vixLsw5bg94QCT8jATCBuiepLnkBw2Gv-Mblx2V7XZp78XSbrAq76Wu962Fg/exec', // Hardcoded default URL
+	workerUrl: 'https://audio-player-proxy.shubhamdocument45.workers.dev', // Your worker URL
+    apiKey: '03d2ca64-4423-4d38-9865-a9730a91ef68-1760081409459', // Same as worker
+    //appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwq4uqQu2vixLsw5bg94QCT8jATCBuiepLnkBw2Gv-Mblx2V7XZp78XSbrAq76Wu962Fg/exec', // Hardcoded default URL
     folderStructure: null,
     currentFolder: null,
     currentPath: [],
