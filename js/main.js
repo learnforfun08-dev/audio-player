@@ -1,20 +1,22 @@
 function init() {
-    // Check if DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeAppsScriptUrl();
-            setupEventListeners();
-            loadPlaylistState();
-        });
-    } else {
-        initializeAppsScriptUrl();
-        setupEventListeners();
-        const restored = loadPlaylistState();
-        
-        if (!restored) {
-            showToast('Browse Drive folders or load local folder to start');
-        }
+    // Wait for DOM
+    if (!document.getElementById('dark-mode-toggle')) {
+        setTimeout(init, 50);
+        return;
+    }
+    
+    initializeAppsScriptUrl();
+    setupEventListeners();
+    
+    const restored = loadPlaylistState();
+    
+    if (!restored) {
+        showToast('Browse Drive folders or load local folder to start');
     }
 }
 
-init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
