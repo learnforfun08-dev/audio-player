@@ -5,11 +5,6 @@
 
 // Open Folder Browser
 function openFolderBrowser() {
-    const url = AppState.appsScriptUrl.trim();
-    if (!url || !url.startsWith('https://script.google.com/macros/')) {
-        showMessage('Please enter a valid Apps Script URL first', true);
-        return;
-    }
     document.getElementById('folder-browser-modal').classList.remove('hidden');
     AppState.currentPath = [];
     AppState.currentFolder = null;
@@ -24,19 +19,34 @@ function closeFolderBrowser() {
 
 // Browse Drive Folders
 async function browseDriveFolders() {
-    const url = AppState.appsScriptUrl.trim();
     const folderList = document.getElementById('folder-list');
     const browseBtn = document.getElementById('drive-browse-btn');
     
-    // Disable button during load
     browseBtn.disabled = true;
     browseBtn.textContent = 'Loading...';
     
     folderList.innerHTML = '<div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>';
 
     try {
-        const response = await fetch(url + '?mode=folders');
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        // Use worker with API key
+        const response = await fetch(AppState.workerUrl + '?mode=folders', {
+            method: 'GET',
+            headers: {
+                'X-API-Key': AppState.apiKey,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Authentication failed - Invalid API key');
+            } else if (response.status === 429) {
+                throw new Error('Rate limit exceeded - Please wait');
+            } else if (response.status === 403) {
+                throw new Error('Access forbidden - Check configuration');
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
         
         const data = await response.json();
         
@@ -52,6 +62,7 @@ async function browseDriveFolders() {
         showToast('Folder structure loaded');
         
     } catch (error) {
+        console.error('Browse error:', error);
         folderList.innerHTML = `<div class="text-center py-8 text-red-600">
             <p class="font-medium">Error: ${error.message}</p>
             <button onclick="browseDriveFolders()" class="mt-4 text-blue-600 underline">Retry</button>
@@ -62,7 +73,7 @@ async function browseDriveFolders() {
     }
 }
 
-// Render Folder View (Optimized)
+// Render Folder View
 function renderFolderView() {
     if (!AppState.currentFolder) return;
 
@@ -73,7 +84,6 @@ function renderFolderView() {
     updateBreadcrumb();
     updateFolderStats(folders.length, files.length);
 
-    // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
 
     // Back button
@@ -113,7 +123,6 @@ function renderFolderView() {
         fragment.appendChild(folderDiv);
     });
 
-    // Clear and append all at once
     folderList.innerHTML = '';
     
     if (folders.length === 0 && files.length === 0) {
@@ -143,7 +152,7 @@ function navigateBack() {
     renderFolderView();
 }
 
-// Load Folder Only (Folder-wise playback)
+// Load Folder Only
 function loadFolderOnly(folderName, folderData) {
     const tracks = folderData.files || [];
     
