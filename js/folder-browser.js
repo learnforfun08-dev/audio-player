@@ -18,33 +18,44 @@ function closeFolderBrowser() {
 }
 
 // Browse Drive Folders
-async function browseDriveFolders() {
+// Replace browseDriveFolders function (add refresh parameter)
+async function browseDriveFolders(forceRefresh = false) {
     const folderList = document.getElementById('folder-list');
     const browseBtn = document.getElementById('drive-browse-btn');
     
     browseBtn.disabled = true;
-    browseBtn.textContent = 'Loading...';
+    browseBtn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Loading...';
     
-    folderList.innerHTML = '<div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>';
+    const loadingMsg = forceRefresh ? 
+        '<p class="text-sm text-gray-600">Rebuilding folder structure...</p>' :
+        '<p class="text-sm text-gray-600">Loading folder structure...</p>';
+    
+    folderList.innerHTML = `<div class="text-center py-8">
+        <div class="loading-spinner mx-auto mb-3"></div>
+        ${loadingMsg}
+        <p class="text-xs text-gray-500 mt-2">${forceRefresh ? 'This may take 2-3 minutes' : 'Should be quick if cached'}</p>
+    </div>`;
 
     try {
-        // Use worker with API key
-        const response = await fetch(AppState.workerUrl + '?mode=folders', {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000);
+        
+        const url = `${AppState.workerUrl}?mode=folders${forceRefresh ? '&refresh=true' : ''}`;
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'X-API-Key': AppState.apiKey,
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
-            if (response.status === 401) {
-                throw new Error('Authentication failed - Invalid API key');
-            } else if (response.status === 429) {
-                throw new Error('Rate limit exceeded - Please wait');
-            } else if (response.status === 403) {
-                throw new Error('Access forbidden - Check configuration');
-            }
+            if (response.status === 401) throw new Error('Invalid API key');
+            if (response.status === 429) throw new Error('Rate limit exceeded');
             throw new Error(`HTTP ${response.status}`);
         }
         
@@ -59,13 +70,18 @@ async function browseDriveFolders() {
         AppState.currentPath = [data.folders.name];
         
         renderFolderView();
-        showToast('Folder structure loaded');
+        
+        const cacheStatus = response.headers.get('X-Cache-Status');
+        const msg = forceRefresh ? 'Folder structure rebuilt' : 
+                    cacheStatus === 'HIT' ? 'Loaded from cache ⚡' : 'Loaded & cached';
+        showToast(msg);
         
     } catch (error) {
         console.error('Browse error:', error);
+        const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message;
         folderList.innerHTML = `<div class="text-center py-8 text-red-600">
-            <p class="font-medium">Error: ${error.message}</p>
-            <button onclick="browseDriveFolders()" class="mt-4 text-blue-600 underline">Retry</button>
+            <p class="font-medium">Error: ${errorMsg}</p>
+            <button onclick="browseDriveFolders()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Retry</button>
         </div>`;
     } finally {
         browseBtn.disabled = false;
@@ -211,3 +227,4 @@ function clearFolderMode() {
     filterPlaylist();
     showToast('Folder mode cleared');
 }
+
