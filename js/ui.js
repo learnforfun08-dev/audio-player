@@ -43,6 +43,7 @@ function setupEventListeners() {
     document.getElementById('browse-folders-btn').addEventListener('click', openFolderBrowser);
     document.getElementById('close-browser-btn').addEventListener('click', closeFolderBrowser);
     document.getElementById('drive-browse-btn').addEventListener('click', browseDriveFolders);
+    document.getElementById('refresh-cache-btn').addEventListener('click', () => browseDriveFolders(true));
     
     // Audio player events
     const audioPlayer = document.getElementById('audio-player');
@@ -62,4 +63,5 @@ function setupEventListeners() {
     document.getElementById('apps-script-url-input').addEventListener('input', (e) => {
         AppState.appsScriptUrl = e.target.value;
     });
+
 }
