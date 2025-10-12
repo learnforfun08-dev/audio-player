@@ -141,25 +141,26 @@
 
 
 			<div class="p-6 border-b">
-				<div class="flex gap-2">
-					<button id="drive-browse-btn" class="flex-1 py-2 px-4 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">
-						☁️ Load Folder Structure
-					</button>
-					<button id="refresh-cache-btn" class="py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition" title="Force rebuild cache">
-						🔄 Refresh
-					</button>
-					
-                <!-- Breadcrumb -->
-                <div id="breadcrumb" class="flex items-center gap-2 text-sm text-gray-600 mt-4 mb-3 overflow-x-auto whitespace-nowrap pb-2">
-                    <span class="font-medium">📍 Current Path:</span>
-                    <span id="current-path" class="text-blue-600">/</span>
-                </div>
-                
-                <!-- Folder stats -->
-                <div class="flex gap-4 text-xs text-gray-500">
-                    <span id="folder-stats">Select a folder to see stats</span>
-                </div>
-            </div>
+			    <div class="flex gap-2">
+			        <button id="drive-browse-btn" class="flex-1 py-2 px-4 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition">
+			            ☁️ Load Folder Structure
+			        </button>
+			        <button id="refresh-cache-btn" class="py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition" title="Force rebuild cache">
+			            🔄 Refresh
+			        </button>
+			    </div>
+			    
+			    <!-- Breadcrumb -->
+			    <div id="breadcrumb" class="flex items-center gap-2 text-sm text-gray-600 mt-4 mb-3 overflow-x-auto whitespace-nowrap pb-2">
+			        <span class="font-medium">📍 Current Path:</span>
+			        <span id="current-path" class="text-blue-600">/</span>
+			    </div>
+			    
+			    <!-- Folder stats -->
+			    <div class="flex gap-4 text-xs text-gray-500">
+			        <span id="folder-stats">Select a folder to see stats</span>
+			    </div>
+			</div>
             
             <div id="folder-list" class="flex-1 overflow-y-auto p-6 custom-scroll">
                 <p class="text-gray-500 text-center py-8">Click "Load Folder Structure" to browse</p>
@@ -194,5 +195,6 @@
 
 </body>
 </html>
+
 
 
