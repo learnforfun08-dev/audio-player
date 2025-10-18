@@ -49,36 +49,6 @@ function toggleDarkMode() {
     document.getElementById('dark-mode-toggle').textContent = AppState.darkMode ? '☀️' : '🌙';
 }
 
-// Keyboard Shortcuts Handler
-function handleKeyboard(e) {
-    if (e.target.tagName === 'INPUT') return;
-    
-    switch(e.code) {
-        case 'Space':
-            e.preventDefault();
-            togglePlayPause();
-            break;
-        case 'ArrowLeft':
-            playPrevious();
-            break;
-        case 'ArrowRight':
-            playNext();
-            break;
-        case 'KeyS':
-            toggleShuffle();
-            break;
-        case 'KeyR':
-            toggleRepeat();
-            break;
-        case 'KeyM':
-            toggleMute();
-            break;
-        case 'KeyF':
-            toggleFavorite();
-            break;
-    }
-
-}
 
 // Add to js/utils.js
 
@@ -129,3 +99,4 @@ const handleKeyboard = throttle(function(e) {
 function batchDOMUpdates(callback) {
     requestAnimationFrame(callback);
 }
+
