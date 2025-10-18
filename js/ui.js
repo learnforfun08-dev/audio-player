@@ -1,67 +1,77 @@
 function setupEventListeners() {
-    // Player controls
-    document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
-    document.getElementById('play-pause-btn').addEventListener('click', togglePlayPause);
-    document.getElementById('next-btn').addEventListener('click', playNext);
-    document.getElementById('prev-btn').addEventListener('click', playPrevious);
-    document.getElementById('shuffle-btn').addEventListener('click', toggleShuffle);
-    document.getElementById('repeat-btn').addEventListener('click', toggleRepeat);
+    // Use event delegation for playlist items
+    document.getElementById('playlist-container').addEventListener('click', (e) => {
+        const playlistItem = e.target.closest('.playlist-item');
+        if (!playlistItem) return;
+        
+        const trackDiv = e.target.closest('.cursor-pointer');
+        const removeBtn = e.target.closest('button[data-index]');
+        
+        if (trackDiv) {
+            const index = Array.from(playlistItem.parentNode.children).indexOf(playlistItem);
+            loadTrack(index);
+        } else if (removeBtn) {
+            e.stopPropagation();
+            removeTrack(parseInt(removeBtn.dataset.index));
+        }
+    });
+    
+    // Batch similar event listeners
+    const buttonHandlers = {
+        'dark-mode-toggle': toggleDarkMode,
+        'play-pause-btn': togglePlayPause,
+        'next-btn': playNext,
+        'prev-btn': playPrevious,
+        'shuffle-btn': toggleShuffle,
+        'repeat-btn': toggleRepeat,
+        'volume-btn': toggleMute,
+        'favorite-btn': toggleFavorite,
+        'export-btn': exportState,
+        'clear-playlist-btn': clearPlaylist,
+        'sort-btn': sortPlaylist,
+        'browse-folders-btn': openFolderBrowser,
+        'close-browser-btn': closeFolderBrowser,
+        'drive-browse-btn': () => browseDriveFolders(),
+        'refresh-cache-btn': () => browseDriveFolders(true),
+        'clear-folder-mode': clearFolderMode,
+        'load-folder-btn': () => document.getElementById('local-folder-input').click(),
+        'import-btn': () => document.getElementById('import-file-input').click()
+    };
+    
+    Object.entries(buttonHandlers).forEach(([id, handler]) => {
+        document.getElementById(id)?.addEventListener('click', handler);
+    });
+    
+    // Range inputs
     document.getElementById('volume-slider').addEventListener('input', handleVolumeChange);
-    document.getElementById('volume-btn').addEventListener('click', toggleMute);
     document.getElementById('progress-bar').addEventListener('input', handleSeek);
     
-    // State management
-    document.getElementById('export-btn').addEventListener('click', exportState);
-    document.getElementById('import-btn').addEventListener('click', () => {
-        document.getElementById('import-file-input').click();
-    });
+    // File inputs
     document.getElementById('import-file-input').addEventListener('change', (e) => {
         if (e.target.files[0]) importState(e.target.files[0]);
         e.target.value = '';
     });
     
-    // File loading
-    document.getElementById('load-folder-btn').addEventListener('click', () => {
-        document.getElementById('local-folder-input').click();
-    });
     document.getElementById('local-folder-input').addEventListener('change', handleLocalFiles);
-    document.getElementById('clear-playlist-btn').addEventListener('click', clearPlaylist);
-    document.getElementById('sort-btn').addEventListener('click', sortPlaylist);
     
-    // Search with debounce
-    let searchTimeout;
-    document.getElementById('search-input').addEventListener('input', e => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => filterPlaylist(e.target.value), 300);
+    // Debounced search
+    const debouncedSearch = debounce((value) => filterPlaylist(value), 300);
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        debouncedSearch(e.target.value);
     });
     
-    // Favorites
-    document.getElementById('favorite-btn').addEventListener('click', toggleFavorite);
-    document.getElementById('clear-folder-mode').addEventListener('click', clearFolderMode);
-    
-    // Folder browser
-    document.getElementById('browse-folders-btn').addEventListener('click', openFolderBrowser);
-    document.getElementById('close-browser-btn').addEventListener('click', closeFolderBrowser);
-    document.getElementById('drive-browse-btn').addEventListener('click', browseDriveFolders);
-    document.getElementById('refresh-cache-btn').addEventListener('click', () => browseDriveFolders(true));
-    
-    // Audio player events
+    // Audio player events with passive listeners
     const audioPlayer = document.getElementById('audio-player');
-    audioPlayer.addEventListener('timeupdate', updateProgress);
+    audioPlayer.addEventListener('timeupdate', updateProgress, { passive: true });
     audioPlayer.addEventListener('loadedmetadata', updateDuration);
     audioPlayer.addEventListener('ended', handleTrackEnd);
     
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    // Tab switching with delegation
+    document.querySelector('.flex.gap-2.mt-4').addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('.tab-btn');
+        if (tabBtn) switchTab(tabBtn.dataset.tab);
     });
     
     // Keyboard shortcuts
-    document.addEventListener('keydown', handleKeyboard);
-    
-    // Apps Script URL input
-    document.getElementById('apps-script-url-input').addEventListener('input', (e) => {
-        AppState.appsScriptUrl = e.target.value;
-    });
-
+    document.addEventListener('keydown', handleKeyboard, { passive: false });
 }
