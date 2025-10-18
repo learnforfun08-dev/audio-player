@@ -118,7 +118,7 @@ function addToRecentlyPlayed(track) {
     AppState.recentlyPlayed = AppState.recentlyPlayed.slice(0, 50);
 }
 
-/ Replace persistence functions in js/state.js
+// Replace persistence functions in js/state.js
 
 let saveTimeout = null;
 
@@ -221,4 +221,5 @@ function loadPlaylistState() {
 function clearPlaylistState() {
     localStorage.removeItem('audioPlayerPlaylist');
 }
+
 
