@@ -1,6 +1,5 @@
 /**
  * State Management Module
- * Manages all application state in memory
  */
 
 const AppState = {
@@ -11,13 +10,12 @@ const AppState = {
     currentTrackIndex: -1,
     isPlaying: false,
     isShuffle: false,
-    repeatMode: 0, // 0: off, 1: all, 2: one
+    repeatMode: 0,
     currentTab: 'all',
     darkMode: false,
     volume: 100,
-	workerUrl: 'https://audio-player-proxy.shubhamdocument45.workers.dev', // Your worker URL
-    apiKey: '03d2ca64-4423-4d38-9865-a9730a91ef68-1760081409459', // Same as worker
-    //appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwq4uqQu2vixLsw5bg94QCT8jATCBuiepLnkBw2Gv-Mblx2V7XZp78XSbrAq76Wu962Fg/exec', // Hardcoded default URL
+    workerUrl: 'https://audio-player-proxy.shubhamdocument45.workers.dev',
+    apiKey: '03d2ca64-4423-4d38-9865-a9730a91ef68-1760081409459',
     folderStructure: null,
     currentFolder: null,
     currentPath: [],
@@ -27,89 +25,19 @@ const AppState = {
 
 const SUPPORTED_FORMATS = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus', '.wma'];
 
-// Export/Import State Functions
-function exportState() {
-    const state = {
-        version: '2.2',
-        appsScriptUrl: AppState.appsScriptUrl,
-        volume: AppState.volume,
-        darkMode: AppState.darkMode,
-        favorites: AppState.favorites,
-        recentlyPlayed: AppState.recentlyPlayed,
-        currentFolderMode: AppState.currentFolderMode,
-        currentFolderName: AppState.currentFolderName,
-        exportDate: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audio-player-state-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('State exported');
-}
+// Track ID with cache
+const trackIdCache = new Map();
 
-function importState(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const state = JSON.parse(e.target.result);
-            
-            if (state.version) {
-                AppState.appsScriptUrl = state.appsScriptUrl || '';
-                AppState.volume = state.volume || 100;
-                AppState.darkMode = state.darkMode || false;
-                AppState.favorites = state.favorites || [];
-                AppState.recentlyPlayed = state.recentlyPlayed || [];
-                AppState.currentFolderMode = state.currentFolderMode || null;
-                AppState.currentFolderName = state.currentFolderName || '';
-                
-                applyImportedState();
-                showToast('State imported successfully');
-            } else {
-                showMessage('Invalid state file format', true);
-            }
-        } catch (error) {
-            showMessage('Error importing: ' + error.message, true);
-        }
-    };
-    reader.readAsText(file);
-}
-
-function applyImportedState() {
-    const appsScriptUrlInput = document.getElementById('apps-script-url-input');
-    const volumeSlider = document.getElementById('volume-slider');
-    const audioPlayer = document.getElementById('audio-player');
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    
-    if (appsScriptUrlInput) appsScriptUrlInput.value = AppState.appsScriptUrl;
-    if (volumeSlider) volumeSlider.value = AppState.volume;
-    if (audioPlayer) audioPlayer.volume = AppState.volume / 100;
-    
-    if (AppState.darkMode && darkModeToggle) {
-        document.body.classList.add('dark-mode');
-        darkModeToggle.textContent = '☀️';
-    }
-    
-    if (AppState.currentFolderMode) {
-        updateFolderBadge();
-    }
-}
-
-// Initialize URL field on page load
-function initializeAppsScriptUrl() {
-    const appsScriptUrlInput = document.getElementById('apps-script-url-input');
-    if (appsScriptUrlInput && !appsScriptUrlInput.value) {
-        appsScriptUrlInput.value = AppState.appsScriptUrl;
-    }
-}
-
-// Track ID Management
 function getTrackId(track) {
-    return track.fileId || track.name;
+    if (!trackIdCache.has(track)) {
+        trackIdCache.set(track, track.fileId || track.name);
+    }
+    return trackIdCache.get(track);
 }
+
+setInterval(() => {
+    if (trackIdCache.size > 1000) trackIdCache.clear();
+}, 60000);
 
 function addToRecentlyPlayed(track) {
     const trackId = getTrackId(track);
@@ -118,11 +46,9 @@ function addToRecentlyPlayed(track) {
     AppState.recentlyPlayed = AppState.recentlyPlayed.slice(0, 50);
 }
 
-// Replace persistence functions in js/state.js
-
+// Debounced save
 let saveTimeout = null;
 
-// Debounced save to avoid excessive writes
 function savePlaylistState() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
@@ -149,7 +75,6 @@ function savePlaylistState() {
         } catch (error) {
             if (error.name === 'QuotaExceededError') {
                 console.warn('LocalStorage quota exceeded');
-                // Keep only essential data
                 const minimalState = {
                     timestamp: Date.now(),
                     currentFolderMode: AppState.currentFolderMode,
@@ -161,21 +86,6 @@ function savePlaylistState() {
         }
     }, 500);
 }
-
-// Optimized track ID lookup with Map
-const trackIdCache = new Map();
-
-function getTrackId(track) {
-    if (!trackIdCache.has(track)) {
-        trackIdCache.set(track, track.fileId || track.name);
-    }
-    return trackIdCache.get(track);
-}
-
-// Clear cache periodically
-setInterval(() => {
-    if (trackIdCache.size > 1000) trackIdCache.clear();
-}, 60000);
 
 function loadPlaylistState() {
     try {
@@ -190,7 +100,6 @@ function loadPlaylistState() {
             return false;
         }
         
-        // Restore Drive files
         if (state.drivePlaylist && state.drivePlaylist.length > 0) {
             AppState.currentPlaylist = state.drivePlaylist;
             AppState.filteredPlaylist = [...state.drivePlaylist];
@@ -205,7 +114,6 @@ function loadPlaylistState() {
             return true;
         }
         
-        // Show prompt for local files
         if (state.localPlaylist) {
             showMessage(`📁 Last session: "${state.localPlaylist.folderName}" (${state.localPlaylist.count} tracks). Please re-select the folder to continue.`, false);
             return false;
@@ -222,4 +130,72 @@ function clearPlaylistState() {
     localStorage.removeItem('audioPlayerPlaylist');
 }
 
+function exportState() {
+    const state = {
+        version: '2.2',
+        volume: AppState.volume,
+        darkMode: AppState.darkMode,
+        favorites: AppState.favorites,
+        recentlyPlayed: AppState.recentlyPlayed,
+        currentFolderMode: AppState.currentFolderMode,
+        currentFolderName: AppState.currentFolderName,
+        exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audio-player-state-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('State exported');
+}
 
+function importState(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const state = JSON.parse(e.target.result);
+            
+            if (state.version) {
+                AppState.volume = state.volume || 100;
+                AppState.darkMode = state.darkMode || false;
+                AppState.favorites = state.favorites || [];
+                AppState.recentlyPlayed = state.recentlyPlayed || [];
+                AppState.currentFolderMode = state.currentFolderMode || null;
+                AppState.currentFolderName = state.currentFolderName || '';
+                
+                applyImportedState();
+                showToast('State imported successfully');
+            } else {
+                showMessage('Invalid state file format', true);
+            }
+        } catch (error) {
+            showMessage('Error importing: ' + error.message, true);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function applyImportedState() {
+    const volumeSlider = document.getElementById('volume-slider');
+    const audioPlayer = document.getElementById('audio-player');
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    
+    if (volumeSlider) volumeSlider.value = AppState.volume;
+    if (audioPlayer) audioPlayer.volume = AppState.volume / 100;
+    
+    if (AppState.darkMode && darkModeToggle) {
+        document.body.classList.add('dark-mode');
+        darkModeToggle.textContent = '☀️';
+    }
+    
+    if (AppState.currentFolderMode) {
+        updateFolderBadge();
+    }
+}
+
+function initializeAppsScriptUrl() {
+    // No longer needed
+}
