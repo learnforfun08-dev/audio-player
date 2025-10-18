@@ -1,7 +1,9 @@
 /**
  * Playlist Management Module
- * Handles playlist filtering, rendering, and manipulation
  */
+
+const ITEMS_PER_PAGE = 50;
+let currentPage = 0;
 
 function switchTab(tab) {
     AppState.currentTab = tab;
@@ -20,10 +22,13 @@ function switchTab(tab) {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     
+    currentPage = 0; // Reset pagination
     filterPlaylist();
 }
 
 function filterPlaylist(query = '') {
+    currentPage = 0; // Reset pagination on filter
+    
     let filtered = [...AppState.currentPlaylist];
     
     if (AppState.currentTab === 'favorites') {
@@ -59,9 +64,6 @@ function filterPlaylist(query = '') {
     }
 }
 
-const ITEMS_PER_PAGE = 50;
-let currentPage = 0;
-
 function renderPlaylist() {
     const playlistContainer = document.getElementById('playlist-container');
     const trackCountSpan = document.getElementById('track-count');
@@ -87,7 +89,6 @@ function renderPlaylist() {
     
     if (emptyPlaylist) emptyPlaylist.style.display = 'none';
 
-    // Virtual scrolling for large playlists
     const totalItems = AppState.filteredPlaylist.length;
     const startIndex = currentPage * ITEMS_PER_PAGE;
     const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
@@ -127,7 +128,6 @@ function renderPlaylist() {
     playlistContainer.innerHTML = '';
     playlistContainer.appendChild(fragment);
 
-    // Add pagination controls if needed
     if (totalItems > ITEMS_PER_PAGE) {
         const paginationDiv = document.createElement('div');
         paginationDiv.className = 'flex justify-center gap-2 mt-3 text-sm';
@@ -152,13 +152,6 @@ function renderPlaylist() {
             }
         });
     }
-}
-
-// Reset pagination when filtering
-const originalFilterPlaylist = filterPlaylist;
-function filterPlaylist(query = '') {
-    currentPage = 0;
-    originalFilterPlaylist.call(this, query);
 }
 
 function removeTrack(index) {
@@ -187,7 +180,7 @@ function clearPlaylist() {
         if (playPauseBtn) playPauseBtn.textContent = '▶️';
         updateFolderBadge();
         renderPlaylist();
-        clearPlaylistState(); // ADD THIS
+        clearPlaylistState();
         showToast('Playlist cleared');
     }
 }
@@ -228,8 +221,7 @@ function handleLocalFiles(event) {
     updateFolderBadge();
     showToast(`Loaded ${AppState.currentPlaylist.length} tracks from "${folderName}"`);
     
-    savePlaylistState(); // ADD THIS
+    savePlaylistState();
     
     event.target.value = '';
-
 }
