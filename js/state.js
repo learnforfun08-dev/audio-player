@@ -118,34 +118,64 @@ function addToRecentlyPlayed(track) {
     AppState.recentlyPlayed = AppState.recentlyPlayed.slice(0, 50);
 }
 
-// Persistence Functions
+/ Replace persistence functions in js/state.js
+
+let saveTimeout = null;
+
+// Debounced save to avoid excessive writes
 function savePlaylistState() {
-    try {
-        const state = {
-            timestamp: Date.now(),
-            currentFolderMode: AppState.currentFolderMode,
-            currentFolderName: AppState.currentFolderName,
-            currentTrackIndex: AppState.currentTrackIndex,
-            // For Drive files - save full playlist
-            drivePlaylist: AppState.currentPlaylist.filter(t => t.fileId).map(t => ({
-                name: t.name,
-                fileId: t.fileId,
-                source: t.source,
-                size: t.size
-            })),
-            // For local files - save metadata only
-            localPlaylist: AppState.currentPlaylist.filter(t => !t.fileId).length > 0 ? {
-                folderName: AppState.currentFolderName,
-                fileNames: AppState.currentPlaylist.filter(t => !t.fileId).map(t => t.name),
-                count: AppState.currentPlaylist.filter(t => !t.fileId).length
-            } : null,
-            currentPath: AppState.currentPath
-        };
-        localStorage.setItem('audioPlayerPlaylist', JSON.stringify(state));
-    } catch (error) {
-        console.error('Failed to save playlist:', error);
-    }
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        try {
+            const state = {
+                timestamp: Date.now(),
+                currentFolderMode: AppState.currentFolderMode,
+                currentFolderName: AppState.currentFolderName,
+                currentTrackIndex: AppState.currentTrackIndex,
+                drivePlaylist: AppState.currentPlaylist.filter(t => t.fileId).map(t => ({
+                    name: t.name,
+                    fileId: t.fileId,
+                    source: t.source,
+                    size: t.size
+                })),
+                localPlaylist: AppState.currentPlaylist.filter(t => !t.fileId).length > 0 ? {
+                    folderName: AppState.currentFolderName,
+                    fileNames: AppState.currentPlaylist.filter(t => !t.fileId).map(t => t.name),
+                    count: AppState.currentPlaylist.filter(t => !t.fileId).length
+                } : null,
+                currentPath: AppState.currentPath
+            };
+            localStorage.setItem('audioPlayerPlaylist', JSON.stringify(state));
+        } catch (error) {
+            if (error.name === 'QuotaExceededError') {
+                console.warn('LocalStorage quota exceeded');
+                // Keep only essential data
+                const minimalState = {
+                    timestamp: Date.now(),
+                    currentFolderMode: AppState.currentFolderMode,
+                    currentFolderName: AppState.currentFolderName,
+                    drivePlaylist: AppState.currentPlaylist.filter(t => t.fileId).slice(0, 100)
+                };
+                localStorage.setItem('audioPlayerPlaylist', JSON.stringify(minimalState));
+            }
+        }
+    }, 500);
 }
+
+// Optimized track ID lookup with Map
+const trackIdCache = new Map();
+
+function getTrackId(track) {
+    if (!trackIdCache.has(track)) {
+        trackIdCache.set(track, track.fileId || track.name);
+    }
+    return trackIdCache.get(track);
+}
+
+// Clear cache periodically
+setInterval(() => {
+    if (trackIdCache.size > 1000) trackIdCache.clear();
+}, 60000);
 
 function loadPlaylistState() {
     try {
@@ -191,3 +221,4 @@ function loadPlaylistState() {
 function clearPlaylistState() {
     localStorage.removeItem('audioPlayerPlaylist');
 }
+
