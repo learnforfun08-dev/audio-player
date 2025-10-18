@@ -77,4 +77,55 @@ function handleKeyboard(e) {
             toggleFavorite();
             break;
     }
+
+}
+
+// Add to js/utils.js
+
+// Generic debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Throttle for high-frequency events
+function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Optimized keyboard handler with throttle
+const handleKeyboard = throttle(function(e) {
+    if (e.target.tagName === 'INPUT') return;
+    
+    const actions = {
+        'Space': () => { e.preventDefault(); togglePlayPause(); },
+        'ArrowLeft': playPrevious,
+        'ArrowRight': playNext,
+        'KeyS': toggleShuffle,
+        'KeyR': toggleRepeat,
+        'KeyM': toggleMute,
+        'KeyF': toggleFavorite,
+        'KeyZ': () => document.getElementById('search-input').focus()
+    };
+    
+    actions[e.code]?.();
+}, 100);
+
+// Batch DOM updates
+function batchDOMUpdates(callback) {
+    requestAnimationFrame(callback);
 }
