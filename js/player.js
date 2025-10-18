@@ -3,63 +3,74 @@
  * Handles all audio playback functionality
  */
 
-// Load and Play Track
-let progressUpdateThrottle = null;
+// Optimized loadTrack with minimal reflows
 function loadTrack(index) {
-    if (index >= 0 && index < AppState.filteredPlaylist.length) {
-        AppState.currentTrackIndex = AppState.currentPlaylist.indexOf(AppState.filteredPlaylist[index]);
-        const track = AppState.filteredPlaylist[index];
+    if (index < 0 || index >= AppState.filteredPlaylist.length) return;
+    
+    AppState.currentTrackIndex = AppState.currentPlaylist.indexOf(AppState.filteredPlaylist[index]);
+    const track = AppState.filteredPlaylist[index];
+    
+    // Batch DOM updates
+    requestAnimationFrame(() => {
+        const elements = {
+            title: document.getElementById('current-track-title'),
+            metadata: document.getElementById('track-metadata'),
+            tag: document.getElementById('file-source-tag'),
+            audioPlayer: document.getElementById('audio-player'),
+            driveContainer: document.getElementById('drive-player-container'),
+            driveFrame: document.getElementById('drive-player-frame'),
+            progressBar: document.getElementById('progress-bar'),
+            playPauseBtn: document.getElementById('play-pause-btn')
+        };
         
-        const audioPlayer = document.getElementById('audio-player');
-        const drivePlayerContainer = document.getElementById('drive-player-container');
-        const drivePlayerFrame = document.getElementById('drive-player-frame');
-        const progressBar = document.getElementById('progress-bar');
-        const playPauseBtn = document.getElementById('play-pause-btn');
+        elements.title.textContent = track.name;
         
-        document.getElementById('current-track-title').textContent = track.name;
-        
-        // Enhanced metadata display
         let metadata = [];
         if (track.size) metadata.push(`Size: ${track.size}`);
         if (track.duration) metadata.push(`Duration: ${formatTime(track.duration)}`);
-        document.getElementById('track-metadata').textContent = metadata.join(' • ');
+        elements.metadata.textContent = metadata.join(' • ');
         
-        const fileSourceTag = document.getElementById('file-source-tag');
-        fileSourceTag.textContent = track.source;
-        fileSourceTag.className = `text-xs font-medium px-3 py-1 rounded-full ${track.source === 'Apps Script API' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`;
+        elements.tag.textContent = track.source;
+        elements.tag.className = `text-xs font-medium px-3 py-1 rounded-full ${
+            track.source === 'Apps Script API' ? 
+            'bg-emerald-100 text-emerald-700' : 
+            'bg-indigo-100 text-indigo-700'
+        }`;
         
         updateFavoriteButton(track);
         addToRecentlyPlayed(track);
 
+        // Update active state
         document.querySelectorAll('.playlist-item').forEach((item, i) => {
             item.classList.toggle('active', i === index);
         });
 
         if (track.fileId) {
-            audioPlayer.classList.add('hidden');
-            drivePlayerContainer.classList.remove('hidden');
-            drivePlayerFrame.src = `https://drive.google.com/file/d/${track.fileId}/preview`;
-            progressBar.disabled = true;
+            elements.audioPlayer.classList.add('hidden');
+            elements.driveContainer.classList.remove('hidden');
+            elements.driveFrame.src = `https://drive.google.com/file/d/${track.fileId}/preview`;
+            elements.progressBar.disabled = true;
             AppState.isPlaying = true;
-            playPauseBtn.textContent = '⏸️';
+            elements.playPauseBtn.textContent = '⏸️';
         } else {
-            drivePlayerContainer.classList.add('hidden');
-            audioPlayer.classList.remove('hidden');
-            audioPlayer.src = track.url;
-            progressBar.disabled = false;
+            elements.driveContainer.classList.add('hidden');
+            elements.audioPlayer.classList.remove('hidden');
+            elements.audioPlayer.src = track.url;
+            elements.progressBar.disabled = false;
             
-            audioPlayer.play().then(() => {
+            elements.audioPlayer.play().then(() => {
                 AppState.isPlaying = true;
-                playPauseBtn.textContent = '⏸️';
+                elements.playPauseBtn.textContent = '⏸️';
             }).catch(err => {
                 console.error('Playback failed:', err);
                 AppState.isPlaying = false;
-                playPauseBtn.textContent = '▶️';
+                elements.playPauseBtn.textContent = '▶️';
                 showToast('Playback failed', 2000);
             });
         }
-		savePlaylistState();
-    }
+        
+        savePlaylistState();
+    });
 }
 
 // Play/Pause Toggle
@@ -180,12 +191,12 @@ function updateVolumeIcon(value) {
     else volumeBtn.textContent = '🔊';
 }
 
-// Progress Bar
-// Replace updateProgress function
+let rafId = null;
+
 function updateProgress() {
-    if (progressUpdateThrottle) return;
+    if (rafId) return;
     
-    progressUpdateThrottle = setTimeout(() => {
+    rafId = requestAnimationFrame(() => {
         const audioPlayer = document.getElementById('audio-player');
         const progressBar = document.getElementById('progress-bar');
         const currentTimeSpan = document.getElementById('current-time');
@@ -194,8 +205,8 @@ function updateProgress() {
             progressBar.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
             currentTimeSpan.textContent = formatTime(audioPlayer.currentTime);
         }
-        progressUpdateThrottle = null;
-    }, 100);
+        rafId = null;
+    });
 }
 
 function updateDuration() {
@@ -258,4 +269,5 @@ function updateFavoriteButton(track) {
     const isFav = AppState.favorites.includes(getTrackId(track));
     favoriteBtn.textContent = isFav ? '❤️' : '🤍';
     favoriteBtn.classList.toggle('active', isFav);
+
 }
