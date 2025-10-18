@@ -1,9 +1,8 @@
 /**
- * Folder Browser Module
+ * Folder Browser Module - FIXED
  * Handles Drive folder browsing and navigation
  */
 
-// Open Folder Browser
 function openFolderBrowser() {
     document.getElementById('folder-browser-modal').classList.remove('hidden');
     AppState.currentPath = [];
@@ -11,14 +10,11 @@ function openFolderBrowser() {
     updateBreadcrumb();
 }
 
-// Close Folder Browser
 function closeFolderBrowser() {
     document.getElementById('folder-browser-modal').classList.add('hidden');
     AppState.folderStructure = null;
 }
 
-// Browse Drive Folders
-// Replace browseDriveFolders function (add refresh parameter)
 async function browseDriveFolders(forceRefresh = false) {
     const folderList = document.getElementById('folder-list');
     const browseBtn = document.getElementById('drive-browse-btn');
@@ -29,26 +25,7 @@ async function browseDriveFolders(forceRefresh = false) {
     const loadingMsg = forceRefresh ? 
         '<p class="text-sm text-gray-600">Rebuilding folder structure...</p>' :
         '<p class="text-sm text-gray-600">Loading folder structure...</p>';
-
-    // Line 33 - Add better error handling
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'X-API-Key': AppState.apiKey,
-            'Content-Type': 'application/json'
-        },
-        signal: controller.signal
-    });
     
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) throw new Error('Invalid API key');
-        if (response.status === 429) throw new Error('Rate limit exceeded');
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
     folderList.innerHTML = `<div class="text-center py-8">
         <div class="loading-spinner mx-auto mb-3"></div>
         ${loadingMsg}
@@ -73,9 +50,10 @@ async function browseDriveFolders(forceRefresh = false) {
         clearTimeout(timeoutId);
         
         if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) throw new Error('Invalid API key');
             if (response.status === 429) throw new Error('Rate limit exceeded');
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(errorData.error || `HTTP ${response.status}`);
         }
         
         const data = await response.json();
@@ -108,7 +86,6 @@ async function browseDriveFolders(forceRefresh = false) {
     }
 }
 
-// Render Folder View
 function renderFolderView() {
     if (!AppState.currentFolder) return;
 
@@ -121,7 +98,6 @@ function renderFolderView() {
 
     const fragment = document.createDocumentFragment();
 
-    // Back button
     if (AppState.currentPath.length > 1) {
         const backDiv = document.createElement('div');
         backDiv.className = 'folder-item p-3 rounded-lg cursor-pointer mb-2 border border-gray-300';
@@ -130,7 +106,6 @@ function renderFolderView() {
         fragment.appendChild(backDiv);
     }
 
-    // Render folders
     folders.forEach(([name, folderData]) => {
         const folderDiv = document.createElement('div');
         folderDiv.className = 'folder-item p-3 rounded-lg mb-2 border border-gray-300 flex justify-between items-center';
@@ -167,14 +142,12 @@ function renderFolderView() {
     }
 }
 
-// Navigate to Folder
 function navigateToFolder(name, folderData) {
     AppState.currentFolder = folderData;
     AppState.currentPath.push(name);
     renderFolderView();
 }
 
-// Navigate Back
 function navigateBack() {
     AppState.currentPath.pop();
     let folder = AppState.folderStructure;
@@ -187,7 +160,6 @@ function navigateBack() {
     renderFolderView();
 }
 
-// Load Folder Only
 function loadFolderOnly(folderName, folderData) {
     const tracks = folderData.files || [];
     
@@ -211,20 +183,17 @@ function loadFolderOnly(folderName, folderData) {
     showToast(`Loaded ${tracks.length} tracks from "${folderName}"`);
 }
 
-// Update Breadcrumb
 function updateBreadcrumb() {
     const breadcrumb = document.getElementById('current-path');
     breadcrumb.textContent = AppState.currentPath.length > 0 ? 
         AppState.currentPath.join(' / ') : '/';
 }
 
-// Update Folder Stats
 function updateFolderStats(folderCount, fileCount) {
     const folderStats = document.getElementById('folder-stats');
     folderStats.textContent = `${folderCount} folder${folderCount !== 1 ? 's' : ''}, ${fileCount} audio file${fileCount !== 1 ? 's' : ''}`;
 }
 
-// Update Folder Badge
 function updateFolderBadge() {
     const currentFolderBadge = document.getElementById('current-folder-badge');
     const folderNameDisplay = document.getElementById('folder-name-display');
@@ -237,7 +206,6 @@ function updateFolderBadge() {
     }
 }
 
-// Clear Folder Mode
 function clearFolderMode() {
     AppState.currentFolderMode = null;
     AppState.currentFolderName = '';
@@ -246,5 +214,3 @@ function clearFolderMode() {
     filterPlaylist();
     showToast('Folder mode cleared');
 }
-
-
