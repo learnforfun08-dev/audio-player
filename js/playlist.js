@@ -59,19 +59,20 @@ function filterPlaylist(query = '') {
     }
 }
 
+const ITEMS_PER_PAGE = 50;
+let currentPage = 0;
+
 function renderPlaylist() {
     const playlistContainer = document.getElementById('playlist-container');
     const trackCountSpan = document.getElementById('track-count');
     const emptyPlaylist = document.getElementById('empty-playlist');
     
-    if (!playlistContainer || !trackCountSpan) {
-        return;
-    }
+    if (!playlistContainer || !trackCountSpan) return;
     
-    playlistContainer.innerHTML = '';
     trackCountSpan.textContent = AppState.filteredPlaylist.length;
     
     if (AppState.filteredPlaylist.length === 0) {
+        playlistContainer.innerHTML = '';
         if (emptyPlaylist) {
             emptyPlaylist.style.display = 'block';
             const messages = {
@@ -84,43 +85,80 @@ function renderPlaylist() {
         return;
     }
     
-    if (emptyPlaylist) {
-        emptyPlaylist.style.display = 'none';
-    }
+    if (emptyPlaylist) emptyPlaylist.style.display = 'none';
 
-    AppState.filteredPlaylist.forEach((track, index) => {
+    // Virtual scrolling for large playlists
+    const totalItems = AppState.filteredPlaylist.length;
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+    const visibleItems = AppState.filteredPlaylist.slice(startIndex, endIndex);
+
+    const fragment = document.createDocumentFragment();
+    
+    visibleItems.forEach((track, index) => {
+        const actualIndex = startIndex + index;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'playlist-item p-3 rounded-lg flex items-center justify-between';
         
         const isCurrent = AppState.currentPlaylist.indexOf(track) === AppState.currentTrackIndex;
         if (isCurrent) itemDiv.classList.add('active');
         
-        const trackDiv = document.createElement('div');
-        trackDiv.className = 'truncate pr-4 flex-1 cursor-pointer';
-        
         const isFav = AppState.favorites.includes(getTrackId(track));
         
-        trackDiv.innerHTML = `
-            <span class="text-sm font-mono text-gray-500">${index + 1}.</span>
-            <span class="ml-2 text-gray-700">${track.name}</span>
-            ${track.fileId ? '<span class="ml-2 text-xs">☁️</span>' : ''}
-            ${isFav ? '<span class="ml-2 text-xs">❤️</span>' : ''}
+        itemDiv.innerHTML = `
+            <div class="truncate pr-4 flex-1 cursor-pointer">
+                <span class="text-sm font-mono text-gray-500">${actualIndex + 1}.</span>
+                <span class="ml-2 text-gray-700">${track.name}</span>
+                ${track.fileId ? '<span class="ml-2 text-xs">☁️</span>' : ''}
+                ${isFav ? '<span class="ml-2 text-xs">❤️</span>' : ''}
+            </div>
+            <button class="text-red-500 hover:text-red-700 text-sm px-2" data-index="${actualIndex}">✕</button>
         `;
-        trackDiv.addEventListener('click', () => loadTrack(index));
         
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'text-red-500 hover:text-red-700 text-sm px-2';
-        removeBtn.textContent = '✕';
-        removeBtn.title = 'Remove';
-        removeBtn.addEventListener('click', (e) => {
+        itemDiv.querySelector('.cursor-pointer').addEventListener('click', () => loadTrack(actualIndex));
+        itemDiv.querySelector('button').addEventListener('click', (e) => {
             e.stopPropagation();
-            removeTrack(index);
+            removeTrack(actualIndex);
         });
         
-        itemDiv.appendChild(trackDiv);
-        itemDiv.appendChild(removeBtn);
-        playlistContainer.appendChild(itemDiv);
+        fragment.appendChild(itemDiv);
     });
+
+    playlistContainer.innerHTML = '';
+    playlistContainer.appendChild(fragment);
+
+    // Add pagination controls if needed
+    if (totalItems > ITEMS_PER_PAGE) {
+        const paginationDiv = document.createElement('div');
+        paginationDiv.className = 'flex justify-center gap-2 mt-3 text-sm';
+        paginationDiv.innerHTML = `
+            <button id="prev-page" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" ${currentPage === 0 ? 'disabled' : ''}>← Prev</button>
+            <span class="px-3 py-1">Page ${currentPage + 1} of ${Math.ceil(totalItems / ITEMS_PER_PAGE)}</span>
+            <button id="next-page" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" ${endIndex >= totalItems ? 'disabled' : ''}>Next →</button>
+        `;
+        playlistContainer.appendChild(paginationDiv);
+        
+        document.getElementById('prev-page')?.addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                renderPlaylist();
+            }
+        });
+        
+        document.getElementById('next-page')?.addEventListener('click', () => {
+            if (endIndex < totalItems) {
+                currentPage++;
+                renderPlaylist();
+            }
+        });
+    }
+}
+
+// Reset pagination when filtering
+const originalFilterPlaylist = filterPlaylist;
+function filterPlaylist(query = '') {
+    currentPage = 0;
+    originalFilterPlaylist.call(this, query);
 }
 
 function removeTrack(index) {
@@ -193,4 +231,5 @@ function handleLocalFiles(event) {
     savePlaylistState(); // ADD THIS
     
     event.target.value = '';
+
 }
