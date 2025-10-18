@@ -29,7 +29,26 @@ async function browseDriveFolders(forceRefresh = false) {
     const loadingMsg = forceRefresh ? 
         '<p class="text-sm text-gray-600">Rebuilding folder structure...</p>' :
         '<p class="text-sm text-gray-600">Loading folder structure...</p>';
+
+    // Line 33 - Add better error handling
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-API-Key': AppState.apiKey,
+            'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+    });
     
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) throw new Error('Invalid API key');
+        if (response.status === 429) throw new Error('Rate limit exceeded');
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+
     folderList.innerHTML = `<div class="text-center py-8">
         <div class="loading-spinner mx-auto mb-3"></div>
         ${loadingMsg}
@@ -227,4 +246,5 @@ function clearFolderMode() {
     filterPlaylist();
     showToast('Folder mode cleared');
 }
+
 
