@@ -1,3 +1,7 @@
+/**
+ * Main Initialization
+ */
+
 function init() {
     // Wait for DOM
     if (!document.getElementById('dark-mode-toggle')) {
@@ -5,9 +9,10 @@ function init() {
         return;
     }
     
-    initializeAppsScriptUrl();
+    // Setup event listeners
     setupEventListeners();
     
+    // Try to restore previous session
     const restored = loadPlaylistState();
     
     if (!restored) {
@@ -15,6 +20,7 @@ function init() {
     }
 }
 
+// Initialize on DOM ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
