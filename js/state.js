@@ -15,7 +15,7 @@ const AppState = {
     darkMode: false,
     volume: 100,
     workerUrl: 'https://audio-player-proxy.shubhamdocument45.workers.dev',
-    apiKey: '03d2ca64-4423-4d38-9865-a9730a91ef68-1760081409459',
+    apiKey: '662fab96d5fda8e2f31f4122bc712feb80e98fa4131f96c6f780166a746d688f',
     folderStructure: null,
     currentFolder: null,
     currentPath: [],
@@ -199,3 +199,4 @@ function applyImportedState() {
 function initializeAppsScriptUrl() {
     // No longer needed
 }
+
