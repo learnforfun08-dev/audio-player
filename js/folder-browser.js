@@ -98,6 +98,8 @@ async function browseDriveFolders(forceRefresh = false) {
         // User-friendly error messages
         if (error.name === 'AbortError') {
             errorMsg = 'Request timeout - Folder is very large';
+        } else if (errorMsg.includes('Failed to fetch')) {
+            errorMsg = 'Network error - Check your internet connection';
         } else if (errorMsg.includes('Origin not allowed')) {
             errorMsg = 'Access denied - Contact administrator';
             retryBtn = false;
@@ -241,6 +243,4 @@ function clearFolderMode() {
     updateFolderBadge();
     filterPlaylist();
     showToast('Folder mode cleared');
-}Msg.includes('Failed to fetch')) {
-            errorMsg = 'Network error - Check your internet connection';
-        } else if (error
+}
