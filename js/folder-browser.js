@@ -1,6 +1,6 @@
 /**
- * Folder Browser Module - FIXED
- * Handles Drive folder browsing and navigation
+ * Folder Browser Module - Phase 1 Security
+ * Sends required auth parameters
  */
 
 function openFolderBrowser() {
@@ -34,25 +34,37 @@ async function browseDriveFolders(forceRefresh = false) {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000);
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
         
         const url = `${AppState.workerUrl}?mode=folders${forceRefresh ? '&refresh=true' : ''}`;
         
+        // SECURITY: Send required headers
         const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'X-API-Key': AppState.apiKey,
                 'Content-Type': 'application/json'
             },
-            signal: controller.signal
+            signal: controller.signal,
+            credentials: 'omit' // Don't send cookies
         });
         
         clearTimeout(timeoutId);
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            if (response.status === 401) throw new Error('Invalid API key');
-            if (response.status === 429) throw new Error('Rate limit exceeded');
+            
+            // Handle different error codes
+            if (response.status === 401) {
+                throw new Error('Invalid API key - Check configuration');
+            }
+            if (response.status === 403) {
+                throw new Error('Access forbidden - Origin not allowed');
+            }
+            if (response.status === 429) {
+                throw new Error('Rate limit exceeded - Please wait a moment');
+            }
+            
             throw new Error(errorData.error || `HTTP ${response.status}`);
         }
         
@@ -60,6 +72,10 @@ async function browseDriveFolders(forceRefresh = false) {
         
         if (data.status === 'error') {
             throw new Error(data.error || 'Failed to load folders');
+        }
+        
+        if (!data.folders) {
+            throw new Error('Invalid response format');
         }
         
         AppState.folderStructure = data.folders;
@@ -75,11 +91,23 @@ async function browseDriveFolders(forceRefresh = false) {
         
     } catch (error) {
         console.error('Browse error:', error);
-        const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message;
+        
+        let errorMsg = error.message;
+        let retryBtn = true;
+        
+        // User-friendly error messages
+        if (error.name === 'AbortError') {
+            errorMsg = 'Request timeout - Folder is very large';
+        } else if (errorMsg.includes('Origin not allowed')) {
+            errorMsg = 'Access denied - Contact administrator';
+            retryBtn = false;
+        }
+        
         folderList.innerHTML = `<div class="text-center py-8 text-red-600">
-            <p class="font-medium">Error: ${errorMsg}</p>
-            <button onclick="browseDriveFolders()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Retry</button>
+            <p class="font-medium mb-2">⚠️ ${errorMsg}</p>
+            ${retryBtn ? '<button onclick="browseDriveFolders()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Retry</button>' : ''}
         </div>`;
+        
     } finally {
         browseBtn.disabled = false;
         browseBtn.textContent = '☁️ Load Folder Structure';
@@ -213,4 +241,6 @@ function clearFolderMode() {
     updateFolderBadge();
     filterPlaylist();
     showToast('Folder mode cleared');
-}
+}Msg.includes('Failed to fetch')) {
+            errorMsg = 'Network error - Check your internet connection';
+        } else if (error
