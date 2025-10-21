@@ -179,4 +179,94 @@ function batchDOMUpdates(callback) {
     requestAnimationFrame(callback);
 }
 
+/**
+ * ADD to js/utils.js - Retry Logic & Error Handling
+ */
+
+// Exponential backoff retry
+async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+    let lastError;
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(url, options);
+            
+            // Retry on 5xx errors
+            if (response.status >= 500) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            return response;
+        } catch (error) {
+            lastError = error;
+            
+            // Don't retry on abort or client errors
+            if (error.name === 'AbortError' || 
+                error.message.includes('401') || 
+                error.message.includes('403')) {
+                throw error;
+            }
+            
+            // Exponential backoff: 1s, 2s, 4s
+            const delay = Math.pow(2, i) * 1000;
+            console.log(`Retry ${i + 1}/${maxRetries} after ${delay}ms...`);
+            
+            if (i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// Global error boundary
+window.addEventListener('error', (event) => {
+    console.error('Global error:', event.error);
+    
+    // Don't show toast for every error, only critical ones
+    if (event.error?.message?.includes('fetch')) {
+        showToast('Network error - Check your connection', 5000);
+    }
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    event.preventDefault();
+});
+
+// Network status monitoring
+let wasOnline = navigator.onLine;
+
+window.addEventListener('online', () => {
+    if (!wasOnline) {
+        showToast('Connection restored! 🎉');
+        wasOnline = true;
+    }
+});
+
+window.addEventListener('offline', () => {
+    showToast('No internet connection ⚠️', 10000);
+    wasOnline = false;
+});
+
+// UPDATE browseDriveFolders() in folder-browser.js to use fetchWithRetry:
+// Replace: const response = await fetch(url, {...});
+// With:    const response = await fetchWithRetry(url, {...});
+
+// Graceful degradation for Drive player
+function handleDrivePlayerError(track) {
+    console.warn('Drive player failed, attempting fallback');
+    
+    // Try direct download URL as fallback
+    const fallbackUrl = `https://drive.google.com/uc?export=download&id=${track.fileId}`;
+    
+    const audioPlayer = document.getElementById('audio-player');
+    audioPlayer.src = fallbackUrl;
+    audioPlayer.play().catch(err => {
+        showToast('Unable to play this track', 3000);
+        console.error('Fallback also failed:', err);
+    });
+}
 
