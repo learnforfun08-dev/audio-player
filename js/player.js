@@ -38,6 +38,7 @@ function loadTrack(index) {
         }`;
         
         updateFavoriteButton(track);
+        scrollToCurrentTrack();
         addToRecentlyPlayed(track);
 
         // Update active state
@@ -68,7 +69,7 @@ function loadTrack(index) {
                 showToast('Playback failed', 2000);
             });
         }
-        
+        scrollToCurrentTrack();
         savePlaylistState();
     });
 }
@@ -271,3 +272,4 @@ function updateFavoriteButton(track) {
     favoriteBtn.classList.toggle('active', isFav);
 
 }
+
