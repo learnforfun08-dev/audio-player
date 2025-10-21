@@ -65,7 +65,6 @@ function filterPlaylist(query = '') {
 }
 
 function renderPlaylist() {
-    const pageSnapshot = currentPage;
     const playlistContainer = document.getElementById('playlist-container');
     const trackCountSpan = document.getElementById('track-count');
     const emptyPlaylist = document.getElementById('empty-playlist');
@@ -236,6 +235,7 @@ function handleLocalFiles(event) {
     
     event.target.value = '';
 }
+
 
 
 
