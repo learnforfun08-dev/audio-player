@@ -148,6 +148,22 @@ function renderPlaylist() {
     }
 }
 
+// Automatically navigate to page with currently playing track
+function scrollToCurrentTrack() {
+    if (AppState.currentTrackIndex === -1) return;
+    
+    const currentTrack = AppState.currentPlaylist[AppState.currentTrackIndex];
+    const indexInFiltered = AppState.filteredPlaylist.indexOf(currentTrack);
+    
+    if (indexInFiltered !== -1) {
+        const targetPage = Math.floor(indexInFiltered / ITEMS_PER_PAGE);
+        if (targetPage !== currentPage) {
+            currentPage = targetPage;
+            renderPlaylist();
+        }
+    }
+}
+
 function removeTrack(index) {
     const track = AppState.filteredPlaylist[index];
     const wasPlaying = AppState.currentPlaylist.indexOf(track) === AppState.currentTrackIndex;
@@ -219,4 +235,5 @@ function handleLocalFiles(event) {
     
     event.target.value = '';
 }
+
 
