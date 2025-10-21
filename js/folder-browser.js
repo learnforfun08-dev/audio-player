@@ -244,3 +244,22 @@ function clearFolderMode() {
     filterPlaylist();
     showToast('Folder mode cleared');
 }
+
+try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+        
+        const url = `${AppState.workerUrl}?mode=folders${forceRefresh ? '&refresh=true' : ''}`;
+        
+        // SECURITY: Send required headers with retry logic
+        const response = await fetchWithRetry(url, {
+            method: 'GET',
+            headers: {
+                'X-API-Key': AppState.apiKey,
+                'Content-Type': 'application/json'
+            },
+            signal: controller.signal,
+            credentials: 'omit'
+        });
+        
+        clearTimeout(timeoutId);
