@@ -1,19 +1,20 @@
-// Replace setupEventListeners in js/ui.js
-
 function setupEventListeners() {
     // Use event delegation for playlist items
-    document.getElementById('playlist-container').addEventListener('click', (e) => {
-        const trackDiv = e.target.closest('[data-track-index]');
-        const removeBtn = e.target.closest('button[data-index]');
-        
-        if (trackDiv) {
-            const index = parseInt(trackDiv.dataset.trackIndex);
-            loadTrack(index);
-        } else if (removeBtn) {
-            e.stopPropagation();
-            removeTrack(parseInt(removeBtn.dataset.index));
-        }
-    });
+    const playlistContainer = document.getElementById('playlist-container');
+    if (playlistContainer) {
+        playlistContainer.addEventListener('click', (e) => {
+            const trackDiv = e.target.closest('[data-track-index]');
+            const removeBtn = e.target.closest('button[data-index]');
+            
+            if (trackDiv) {
+                const index = parseInt(trackDiv.dataset.trackIndex);
+                loadTrack(index);
+            } else if (removeBtn) {
+                e.stopPropagation();
+                removeTrack(parseInt(removeBtn.dataset.index));
+            }
+        });
+    }
     
     // Batch similar event listeners
     const buttonHandlers = {
@@ -33,44 +34,59 @@ function setupEventListeners() {
         'drive-browse-btn': () => browseDriveFolders(),
         'refresh-cache-btn': () => browseDriveFolders(true),
         'clear-folder-mode': clearFolderMode,
-        'load-folder-btn': () => document.getElementById('local-folder-input').click(),
-        'import-btn': () => document.getElementById('import-file-input').click()
+        'load-folder-btn': () => document.getElementById('local-folder-input')?.click(),
+        'import-btn': () => document.getElementById('import-file-input')?.click()
     };
     
     Object.entries(buttonHandlers).forEach(([id, handler]) => {
-        document.getElementById(id)?.addEventListener('click', handler);
+        const element = document.getElementById(id);
+        if (element) element.addEventListener('click', handler);
     });
     
     // Range inputs
-    document.getElementById('volume-slider').addEventListener('input', handleVolumeChange);
-    document.getElementById('progress-bar').addEventListener('input', handleSeek);
+    const volumeSlider = document.getElementById('volume-slider');
+    const progressBar = document.getElementById('progress-bar');
+    if (volumeSlider) volumeSlider.addEventListener('input', handleVolumeChange);
+    if (progressBar) progressBar.addEventListener('input', handleSeek);
     
     // File inputs
-    document.getElementById('import-file-input').addEventListener('change', (e) => {
-        if (e.target.files[0]) importState(e.target.files[0]);
-        e.target.value = '';
-    });
+    const importFileInput = document.getElementById('import-file-input');
+    if (importFileInput) {
+        importFileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) importState(e.target.files[0]);
+            e.target.value = '';
+        });
+    }
     
-    document.getElementById('local-folder-input').addEventListener('change', handleLocalFiles);
+    const localFolderInput = document.getElementById('local-folder-input');
+    if (localFolderInput) {
+        localFolderInput.addEventListener('change', handleLocalFiles);
+    }
     
     // Debounced search
-    const debouncedSearch = debounce((value) => filterPlaylist(value), 300);
-    document.getElementById('search-input').addEventListener('input', (e) => {
-        debouncedSearch(e.target.value);
-    });
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        const debouncedSearch = debounce((value) => filterPlaylist(value), 300);
+        searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
+    }
     
     // Audio player events with passive listeners
     const audioPlayer = document.getElementById('audio-player');
-    audioPlayer.addEventListener('timeupdate', updateProgress, { passive: true });
-    audioPlayer.addEventListener('loadedmetadata', updateDuration);
-    audioPlayer.addEventListener('ended', handleTrackEnd);
+    if (audioPlayer) {
+        audioPlayer.addEventListener('timeupdate', updateProgress, { passive: true });
+        audioPlayer.addEventListener('loadedmetadata', updateDuration);
+        audioPlayer.addEventListener('ended', handleTrackEnd);
+    }
     
     // Tab switching with delegation
-    document.querySelector('.flex.gap-2.mt-4').addEventListener('click', (e) => {
-        const tabBtn = e.target.closest('.tab-btn');
-        if (tabBtn) switchTab(tabBtn.dataset.tab);
-    });
+    const tabContainer = document.querySelector('.flex.gap-2.mt-4');
+    if (tabContainer) {
+        tabContainer.addEventListener('click', (e) => {
+            const tabBtn = e.target.closest('.tab-btn');
+            if (tabBtn) switchTab(tabBtn.dataset.tab);
+        });
+    }
     
-    // Keyboard shortcuts
+    // Keyboard shortcuts - use the function from utils.js
     document.addEventListener('keydown', handleKeyboard, { passive: false });
 }
