@@ -227,7 +227,14 @@ function handleSeek(e) {
 
 // Track End Handler
 function handleTrackEnd() {
+    const audioPlayer = document.getElementById('audio-player');
     const playPauseBtn = document.getElementById('play-pause-btn');
+    
+    // Track analytics
+    if (AppState.currentTrackIndex !== -1 && audioPlayer.duration) {
+        const track = AppState.currentPlaylist[AppState.currentTrackIndex];
+        Analytics.trackPlayed(getTrackId(track), audioPlayer.duration);
+    }
     
     if (AppState.repeatMode === 1 || AppState.isShuffle) {
         playNext();
@@ -237,7 +244,7 @@ function handleTrackEnd() {
             playNext();
         } else {
             AppState.isPlaying = false;
-            playPauseBtn.textContent = '▶️';
+            if (playPauseBtn) playPauseBtn.textContent = '▶️';
         }
     }
 }
@@ -272,4 +279,5 @@ function updateFavoriteButton(track) {
     favoriteBtn.classList.toggle('active', isFav);
 
 }
+
 
