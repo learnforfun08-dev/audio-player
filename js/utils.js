@@ -2,7 +2,7 @@
  * Utility Functions Module
  * Common helper functions used throughout the app
  */
-let selectedTrackIndex = -1;
+
 // Time Formatting
 function formatTime(seconds) {
     if (isNaN(seconds)) return '0:00';
@@ -36,6 +36,8 @@ function showToast(message, duration = 3000) {
 // Status Messages
 function showMessage(message, isError = false) {
     const statusMessage = document.getElementById('status-message');
+    if (!statusMessage) return;
+    
     statusMessage.innerHTML = message;
     statusMessage.className = `mt-4 p-3 text-sm rounded-lg ${isError ? 'text-red-800 bg-red-100 border border-red-300' : 'text-blue-800 bg-blue-100 border border-blue-300'}`;
     statusMessage.classList.remove('hidden');
@@ -46,11 +48,11 @@ function showMessage(message, isError = false) {
 function toggleDarkMode() {
     AppState.darkMode = !AppState.darkMode;
     document.body.classList.toggle('dark-mode');
-    document.getElementById('dark-mode-toggle').textContent = AppState.darkMode ? '☀️' : '🌙';
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    if (darkModeToggle) {
+        darkModeToggle.textContent = AppState.darkMode ? '☀️' : '🌙';
+    }
 }
-
-
-// Add to js/utils.js
 
 // Generic debounce function
 function debounce(func, wait) {
@@ -77,110 +79,13 @@ function throttle(func, limit) {
     };
 }
 
-// UPDATE handleKeyboard function with these additions:
-const enhancedKeyboardHandler = throttle(function(e) {
-    if (e.target.tagName === 'INPUT' && !e.ctrlKey && !e.metaKey) return;
-    
-    const actions = {
-        // Existing shortcuts
-        'Space': () => { e.preventDefault(); togglePlayPause(); },
-        'ArrowLeft': playPrevious,
-        'ArrowRight': playNext,
-        'KeyS': toggleShuffle,
-        'KeyR': toggleRepeat,
-        'KeyM': toggleMute,
-        'KeyF': toggleFavorite,
-        'KeyZ': () => document.getElementById('search-input').focus(),
-        
-        // NEW: Playlist navigation
-        'ArrowUp': () => {
-            e.preventDefault();
-            if (selectedTrackIndex > 0) {
-                selectedTrackIndex--;
-                highlightTrack(selectedTrackIndex);
-            }
-        },
-        'ArrowDown': () => {
-            e.preventDefault();
-            if (selectedTrackIndex < AppState.filteredPlaylist.length - 1) {
-                selectedTrackIndex++;
-                highlightTrack(selectedTrackIndex);
-            } else {
-                selectedTrackIndex = 0;
-                highlightTrack(selectedTrackIndex);
-            }
-        },
-        'Enter': () => {
-            e.preventDefault();
-            if (selectedTrackIndex >= 0) {
-                loadTrack(selectedTrackIndex);
-            }
-        },
-        'Delete': () => {
-            e.preventDefault();
-            if (selectedTrackIndex >= 0 && confirm('Remove this track?')) {
-                removeTrack(selectedTrackIndex);
-                if (selectedTrackIndex >= AppState.filteredPlaylist.length) {
-                    selectedTrackIndex = AppState.filteredPlaylist.length - 1;
-                }
-                highlightTrack(selectedTrackIndex);
-            }
-        },
-        'PageDown': () => {
-            e.preventDefault();
-            const nextPage = document.getElementById('next-page');
-            if (nextPage && !nextPage.disabled) nextPage.click();
-        },
-        'PageUp': () => {
-            e.preventDefault();
-            const prevPage = document.getElementById('prev-page');
-            if (prevPage && !prevPage.disabled) prevPage.click();
-        },
-        'Home': () => {
-            e.preventDefault();
-            selectedTrackIndex = 0;
-            highlightTrack(selectedTrackIndex);
-        },
-        'End': () => {
-            e.preventDefault();
-            selectedTrackIndex = AppState.filteredPlaylist.length - 1;
-            highlightTrack(selectedTrackIndex);
-        },
-        // Ctrl/Cmd shortcuts
-        'KeyA': () => {
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                document.getElementById('search-input').select();
-            }
-        }
-    };
-    
-    actions[e.code]?.();
-}, 100);
-
-function highlightTrack(index) {
-    // Remove previous highlight
-    document.querySelectorAll('.playlist-item').forEach(item => {
-        item.classList.remove('selected');
-    });
-    
-    // Add highlight to selected track
-    const items = document.querySelectorAll('[data-track-index]');
-    items.forEach(item => {
-        if (parseInt(item.dataset.trackIndex) === index) {
-            item.parentElement.classList.add('selected');
-            item.parentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    });
-}
-
 // Batch DOM updates
 function batchDOMUpdates(callback) {
     requestAnimationFrame(callback);
 }
 
 /**
- * ADD to js/utils.js - Retry Logic & Error Handling
+ * Retry Logic & Error Handling
  */
 
 // Exponential backoff retry
@@ -251,10 +156,6 @@ window.addEventListener('offline', () => {
     wasOnline = false;
 });
 
-// UPDATE browseDriveFolders() in folder-browser.js to use fetchWithRetry:
-// Replace: const response = await fetch(url, {...});
-// With:    const response = await fetchWithRetry(url, {...});
-
 // Graceful degradation for Drive player
 function handleDrivePlayerError(track) {
     console.warn('Drive player failed, attempting fallback');
@@ -263,10 +164,11 @@ function handleDrivePlayerError(track) {
     const fallbackUrl = `https://drive.google.com/uc?export=download&id=${track.fileId}`;
     
     const audioPlayer = document.getElementById('audio-player');
-    audioPlayer.src = fallbackUrl;
-    audioPlayer.play().catch(err => {
-        showToast('Unable to play this track', 3000);
-        console.error('Fallback also failed:', err);
-    });
+    if (audioPlayer) {
+        audioPlayer.src = fallbackUrl;
+        audioPlayer.play().catch(err => {
+            showToast('Unable to play this track', 3000);
+            console.error('Fallback also failed:', err);
+        });
+    }
 }
-
