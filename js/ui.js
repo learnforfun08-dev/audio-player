@@ -1,14 +1,13 @@
+// Replace setupEventListeners in js/ui.js
+
 function setupEventListeners() {
     // Use event delegation for playlist items
     document.getElementById('playlist-container').addEventListener('click', (e) => {
-        const playlistItem = e.target.closest('.playlist-item');
-        if (!playlistItem) return;
-        
-        const trackDiv = e.target.closest('.cursor-pointer');
+        const trackDiv = e.target.closest('[data-track-index]');
         const removeBtn = e.target.closest('button[data-index]');
         
         if (trackDiv) {
-            const index = Array.from(playlistItem.parentNode.children).indexOf(playlistItem);
+            const index = parseInt(trackDiv.dataset.trackIndex);
             loadTrack(index);
         } else if (removeBtn) {
             e.stopPropagation();
