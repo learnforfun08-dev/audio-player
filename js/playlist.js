@@ -1,5 +1,5 @@
 /**
- * Playlist Management Module
+ * Playlist Management Module - FIXED PAGINATION
  */
 
 const ITEMS_PER_PAGE = 50;
@@ -22,12 +22,12 @@ function switchTab(tab) {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     
-    currentPage = 0; // Reset pagination
+    currentPage = 0;
     filterPlaylist();
 }
 
 function filterPlaylist(query = '') {
-    currentPage = 0; // Reset pagination on filter
+    currentPage = 0;
     
     let filtered = [...AppState.currentPlaylist];
     
@@ -97,7 +97,7 @@ function renderPlaylist() {
     const fragment = document.createDocumentFragment();
     
     visibleItems.forEach((track, index) => {
-        const actualIndex = startIndex + index;
+        const actualIndex = startIndex + index; // This is the index in filteredPlaylist
         const itemDiv = document.createElement('div');
         itemDiv.className = 'playlist-item p-3 rounded-lg flex items-center justify-between';
         
@@ -107,7 +107,7 @@ function renderPlaylist() {
         const isFav = AppState.favorites.includes(getTrackId(track));
         
         itemDiv.innerHTML = `
-            <div class="truncate pr-4 flex-1 cursor-pointer">
+            <div class="truncate pr-4 flex-1 cursor-pointer" data-track-index="${actualIndex}">
                 <span class="text-sm font-mono text-gray-500">${actualIndex + 1}.</span>
                 <span class="ml-2 text-gray-700">${track.name}</span>
                 ${track.fileId ? '<span class="ml-2 text-xs">☁️</span>' : ''}
@@ -115,12 +115,6 @@ function renderPlaylist() {
             </div>
             <button class="text-red-500 hover:text-red-700 text-sm px-2" data-index="${actualIndex}">✕</button>
         `;
-        
-        itemDiv.querySelector('.cursor-pointer').addEventListener('click', () => loadTrack(actualIndex));
-        itemDiv.querySelector('button').addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeTrack(actualIndex);
-        });
         
         fragment.appendChild(itemDiv);
     });
