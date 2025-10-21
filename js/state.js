@@ -196,7 +196,128 @@ function applyImportedState() {
     }
 }
 
+/**
+ * ADD to js/state.js - Local Analytics (No External Tracking)
+ */
+
+const Analytics = {
+    stats: {
+        tracksPlayed: 0,
+        totalPlaytime: 0,
+        mostPlayedTracks: {},
+        sessionsCount: 0,
+        lastSession: null
+    },
+    
+    init() {
+        const saved = localStorage.getItem('playerAnalytics');
+        if (saved) {
+            this.stats = {...this.stats, ...JSON.parse(saved)};
+        }
+        this.stats.sessionsCount++;
+        this.stats.lastSession = new Date().toISOString();
+        this.save();
+    },
+    
+    trackPlayed(trackId, duration) {
+        this.stats.tracksPlayed++;
+        this.stats.totalPlaytime += duration;
+        
+        if (!this.stats.mostPlayedTracks[trackId]) {
+            this.stats.mostPlayedTracks[trackId] = 0;
+        }
+        this.stats.mostPlayedTracks[trackId]++;
+        
+        this.save();
+    },
+    
+    save() {
+        localStorage.setItem('playerAnalytics', JSON.stringify(this.stats));
+    },
+    
+    getReport() {
+        const topTracks = Object.entries(this.stats.mostPlayedTracks)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10);
+        
+        return {
+            totalTracks: this.stats.tracksPlayed,
+            totalHours: (this.stats.totalPlaytime / 3600).toFixed(1),
+            sessions: this.stats.sessionsCount,
+            topTracks: topTracks.map(([id, plays]) => ({
+                track: AppState.currentPlaylist.find(t => getTrackId(t) === id)?.name || id,
+                plays
+            }))
+        };
+    },
+    
+    clear() {
+        this.stats = {
+            tracksPlayed: 0,
+            totalPlaytime: 0,
+            mostPlayedTracks: {},
+            sessionsCount: 0,
+            lastSession: null
+        };
+        localStorage.removeItem('playerAnalytics');
+    }
+};
+
+// Initialize analytics
+Analytics.init();
+
+// UPDATE handleTrackEnd() in player.js to track playback:
+// Add before playNext(): 
+// const track = AppState.currentPlaylist[AppState.currentTrackIndex];
+// Analytics.trackPlayed(getTrackId(track), audioPlayer.duration);
+
+// ADD button to show stats (in HTML):
+// <button onclick="showAnalyticsReport()">📊 Stats</button>
+
+function showAnalyticsReport() {
+    const report = Analytics.getReport();
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
+            <h3 class="text-2xl font-bold mb-4">📊 Your Music Stats</h3>
+            <div class="space-y-3">
+                <p class="text-lg">🎵 Tracks Played: <strong>${report.totalTracks}</strong></p>
+                <p class="text-lg">⏱️ Total Time: <strong>${report.totalHours} hours</strong></p>
+                <p class="text-lg">📅 Sessions: <strong>${report.sessions}</strong></p>
+                
+                <div class="mt-4">
+                    <h4 class="font-bold mb-2">🏆 Top Tracks:</h4>
+                    <ol class="text-sm space-y-1">
+                        ${report.topTracks.map((t, i) => 
+                            `<li>${i+1}. ${t.track} <span class="text-gray-500">(${t.plays} plays)</span></li>`
+                        ).join('')}
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 mt-6">
+                <button onclick="Analytics.clear(); this.closest('.fixed').remove(); showToast('Stats cleared');" 
+                        class="flex-1 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">
+                    Clear Stats
+                </button>
+                <button onclick="this.closest('.fixed').remove();" 
+                        class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+
 function initializeAppsScriptUrl() {
     // No longer needed
 }
+
 
