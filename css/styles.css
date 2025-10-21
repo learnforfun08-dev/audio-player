@@ -409,3 +409,15 @@ body.dark-mode {
         font-size: 0.75rem;
     }
 }
+
+/* Keyboard navigation highlight */
+.playlist-item.selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+    background-color: #dbeafe !important;
+}
+
+.dark-mode .playlist-item.selected {
+    outline-color: #60a5fa;
+    background-color: #1e3a8a !important;
+}
