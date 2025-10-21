@@ -1,3 +1,8 @@
+/**
+ * UI Event Handlers Module
+ * Handles all user interface interactions and event listeners
+ */
+
 function setupEventListeners() {
     // Use event delegation for playlist items
     const playlistContainer = document.getElementById('playlist-container');
@@ -34,26 +39,42 @@ function setupEventListeners() {
         'drive-browse-btn': () => browseDriveFolders(),
         'refresh-cache-btn': () => browseDriveFolders(true),
         'clear-folder-mode': clearFolderMode,
-        'load-folder-btn': () => document.getElementById('local-folder-input')?.click(),
-        'import-btn': () => document.getElementById('import-file-input')?.click()
+        'load-folder-btn': () => {
+            const input = document.getElementById('local-folder-input');
+            if (input) input.click();
+        },
+        'import-btn': () => {
+            const input = document.getElementById('import-file-input');
+            if (input) input.click();
+        }
     };
     
     Object.entries(buttonHandlers).forEach(([id, handler]) => {
         const element = document.getElementById(id);
-        if (element) element.addEventListener('click', handler);
+        if (element) {
+            element.addEventListener('click', handler);
+        }
     });
     
     // Range inputs
     const volumeSlider = document.getElementById('volume-slider');
     const progressBar = document.getElementById('progress-bar');
-    if (volumeSlider) volumeSlider.addEventListener('input', handleVolumeChange);
-    if (progressBar) progressBar.addEventListener('input', handleSeek);
+    
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', handleVolumeChange);
+    }
+    
+    if (progressBar) {
+        progressBar.addEventListener('input', handleSeek);
+    }
     
     // File inputs
     const importFileInput = document.getElementById('import-file-input');
     if (importFileInput) {
         importFileInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) importState(e.target.files[0]);
+            if (e.target.files && e.target.files[0]) {
+                importState(e.target.files[0]);
+            }
             e.target.value = '';
         });
     }
@@ -67,7 +88,9 @@ function setupEventListeners() {
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         const debouncedSearch = debounce((value) => filterPlaylist(value), 300);
-        searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
+        searchInput.addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
+        });
     }
     
     // Audio player events with passive listeners
@@ -83,11 +106,215 @@ function setupEventListeners() {
     if (tabContainer) {
         tabContainer.addEventListener('click', (e) => {
             const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn) switchTab(tabBtn.dataset.tab);
+            if (tabBtn && tabBtn.dataset.tab) {
+                switchTab(tabBtn.dataset.tab);
+            }
         });
     }
     
-    // Keyboard shortcuts - use the function from utils.js
+    // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboard, { passive: false });
+    
+    // Initialize dark mode from saved state
+    initializeDarkMode();
 }
 
+function initializeDarkMode() {
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    
+    if (AppState.darkMode) {
+        document.body.classList.add('dark-mode');
+        if (darkModeToggle) {
+            darkModeToggle.textContent = '☀️';
+        }
+    }
+}
+
+// Keyboard handler with throttling
+function handleKeyboard(e) {
+    // Don't intercept when typing in input fields (unless using modifiers)
+    if (e.target.tagName === 'INPUT' && !e.ctrlKey && !e.metaKey) return;
+    
+    const actions = {
+        // Playback controls
+        'Space': () => {
+            e.preventDefault();
+            togglePlayPause();
+        },
+        'ArrowLeft': () => {
+            if (e.target.tagName !== 'INPUT') {
+                playPrevious();
+            }
+        },
+        'ArrowRight': () => {
+            if (e.target.tagName !== 'INPUT') {
+                playNext();
+            }
+        },
+        
+        // Player functions
+        'KeyS': () => {
+            if (!e.ctrlKey && !e.metaKey) {
+                toggleShuffle();
+            }
+        },
+        'KeyR': () => {
+            if (!e.ctrlKey && !e.metaKey) {
+                toggleRepeat();
+            }
+        },
+        'KeyM': () => {
+            toggleMute();
+        },
+        'KeyF': () => {
+            if (!e.ctrlKey && !e.metaKey) {
+                toggleFavorite();
+            }
+        },
+        'KeyZ': () => {
+            if (!e.ctrlKey && !e.metaKey) {
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) searchInput.focus();
+            }
+        },
+        
+        // Playlist navigation
+        'ArrowUp': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                navigatePlaylistUp();
+            }
+        },
+        'ArrowDown': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                navigatePlaylistDown();
+            }
+        },
+        'Enter': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                playSelectedTrack();
+            }
+        },
+        'Delete': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                deleteSelectedTrack();
+            }
+        },
+        
+        // Page navigation
+        'PageDown': () => {
+            e.preventDefault();
+            const nextPage = document.getElementById('next-page');
+            if (nextPage && !nextPage.disabled) {
+                nextPage.click();
+            }
+        },
+        'PageUp': () => {
+            e.preventDefault();
+            const prevPage = document.getElementById('prev-page');
+            if (prevPage && !prevPage.disabled) {
+                prevPage.click();
+            }
+        },
+        'Home': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                selectedTrackIndex = 0;
+                highlightTrack(selectedTrackIndex);
+            }
+        },
+        'End': () => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                selectedTrackIndex = AppState.filteredPlaylist.length - 1;
+                highlightTrack(selectedTrackIndex);
+            }
+        },
+        
+        // Ctrl/Cmd shortcuts
+        'KeyA': () => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) searchInput.select();
+            }
+        }
+    };
+    
+    const action = actions[e.code];
+    if (action) {
+        action();
+    }
+}
+
+// Playlist keyboard navigation helpers
+function navigatePlaylistUp() {
+    if (selectedTrackIndex > 0) {
+        selectedTrackIndex--;
+        highlightTrack(selectedTrackIndex);
+    }
+}
+
+function navigatePlaylistDown() {
+    if (AppState.filteredPlaylist.length === 0) return;
+    
+    if (selectedTrackIndex < AppState.filteredPlaylist.length - 1) {
+        selectedTrackIndex++;
+    } else {
+        selectedTrackIndex = 0;
+    }
+    highlightTrack(selectedTrackIndex);
+}
+
+function playSelectedTrack() {
+    if (selectedTrackIndex >= 0 && selectedTrackIndex < AppState.filteredPlaylist.length) {
+        loadTrack(selectedTrackIndex);
+    }
+}
+
+function deleteSelectedTrack() {
+    if (selectedTrackIndex >= 0 && selectedTrackIndex < AppState.filteredPlaylist.length) {
+        if (confirm('Remove this track from playlist?')) {
+            removeTrack(selectedTrackIndex);
+            
+            // Adjust selection after deletion
+            if (selectedTrackIndex >= AppState.filteredPlaylist.length) {
+                selectedTrackIndex = AppState.filteredPlaylist.length - 1;
+            }
+            
+            if (selectedTrackIndex >= 0) {
+                highlightTrack(selectedTrackIndex);
+            }
+        }
+    }
+}
+
+function highlightTrack(index) {
+    if (index < 0 || index >= AppState.filteredPlaylist.length) return;
+    
+    // Remove previous highlight
+    document.querySelectorAll('.playlist-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Add highlight to selected track
+    const items = document.querySelectorAll('[data-track-index]');
+    items.forEach(item => {
+        if (parseInt(item.dataset.trackIndex) === index) {
+            const playlistItem = item.closest('.playlist-item');
+            if (playlistItem) {
+                playlistItem.classList.add('selected');
+                playlistItem.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }
+        }
+    });
+}
+
+// Initialize selected track index
+let selectedTrackIndex = -1;
