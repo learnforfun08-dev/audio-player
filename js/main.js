@@ -3,11 +3,28 @@
  */
 
 function init() {
-    // Wait for DOM
+    // Check if all required functions are loaded
+    const requiredFunctions = [
+        'setupEventListeners',
+        'loadPlaylistState',
+        'showToast'
+    ];
+    
+    const missingFunctions = requiredFunctions.filter(fn => typeof window[fn] === 'undefined');
+    
+    if (missingFunctions.length > 0) {
+        console.log('Waiting for modules to load...', missingFunctions);
+        setTimeout(init, 50);
+        return;
+    }
+    
+    // Check if DOM is ready
     if (!document.getElementById('dark-mode-toggle')) {
         setTimeout(init, 50);
         return;
     }
+    
+    console.log('Initializing Audio Player...');
     
     // Setup event listeners
     setupEventListeners();
@@ -18,6 +35,8 @@ function init() {
     if (!restored) {
         showToast('Browse Drive folders or load local folder to start');
     }
+    
+    console.log('Audio Player initialized successfully');
 }
 
 // Initialize on DOM ready
