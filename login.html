@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Player Login</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .login-container {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+            max-width: 400px;
+            width: 100%;
+        }
+        .input-group {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .input-group label {
+            position: absolute;
+            left: 1rem;
+            top: 0.75rem;
+            color: #9ca3af;
+            font-size: 1rem;
+            pointer-events: none;
+            transition: all 0.3s;
+        }
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            top: -0.5rem;
+            left: 0.75rem;
+            font-size: 0.75rem;
+            color: #667eea;
+            background: white;
+            padding: 0 0.25rem;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        .btn-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .toggle-password {
+            position: absolute;
+            right: 1rem;
+            top: 0.75rem;
+            cursor: pointer;
+            font-size: 1.25rem;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="text-center mb-6">
+            <div class="text-5xl mb-3">🎵</div>
+            <h1 class="text-2xl font-bold text-gray-800">Audio Player</h1>
+            <p class="text-sm text-gray-500 mt-2">Sign in to access your music</p>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+
+        <form id="login-form">
+            <div class="input-group">
+                <input type="text" id="username" placeholder=" " required autocomplete="username">
+                <label for="username">Username</label>
+            </div>
+
+            <div class="input-group">
+                <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+                <label for="password">Password</label>
+                <span class="toggle-password" onclick="togglePassword()">👁️</span>
+            </div>
+
+            <div class="flex items-center justify-between mb-6">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="remember-me" class="mr-2">
+                    <span class="text-sm text-gray-600">Remember me</span>
+                </label>
+                <a href="#" class="text-sm text-blue-600 hover:text-blue-700" onclick="showForgotPassword()">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-login" id="login-btn">
+                Sign In
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-500">
+                Demo: username: <code class="bg-gray-100 px-2 py-1 rounded">admin</code> / password: <code class="bg-gray-100 px-2 py-1 rounded">music123</code>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const AUTH_CONFIG = {
+            // Store users in localStorage (for demo - use backend in production)
+            users: [
+                { username: 'admin', password: 'music123', role: 'admin' },
+                { username: 'user', password: 'user123', role: 'user' }
+            ],
+            sessionDuration: 24 * 60 * 60 * 1000, // 24 hours
+            maxAttempts: 5,
+            lockoutDuration: 15 * 60 * 1000 // 15 minutes
+        };
+
+        // Check if already logged in
+        function checkExistingSession() {
+            const session = localStorage.getItem('audioPlayerSession');
+            if (session) {
+                try {
+                    const sessionData = JSON.parse(session);
+                    const now = Date.now();
+                    
+                    if (now < sessionData.expiresAt) {
+                        // Valid session exists
+                        window.location.href = 'index.html';
+                    } else {
+                        // Session expired
+                        localStorage.removeItem('audioPlayerSession');
+                    }
+                } catch (e) {
+                    localStorage.removeItem('audioPlayerSession');
+                }
+            }
+        }
+
+        // Check for lockout
+        function checkLockout() {
+            const lockout = localStorage.getItem('loginLockout');
+            if (lockout) {
+                const lockoutData = JSON.parse(lockout);
+                const now = Date.now();
+                
+                if (now < lockoutData.until) {
+                    const remainingMinutes = Math.ceil((lockoutData.until - now) / 60000);
+                    showError(`Too many failed attempts. Try again in ${remainingMinutes} minutes.`);
+                    document.getElementById('login-btn').disabled = true;
+                    return true;
+                } else {
+                    localStorage.removeItem('loginLockout');
+                    localStorage.removeItem('loginAttempts');
+                }
+            }
+            return false;
+        }
+
+        // Login attempt tracking
+        function recordLoginAttempt(success) {
+            if (success) {
+                localStorage.removeItem('loginAttempts');
+                localStorage.removeItem('loginLockout');
+                return;
+            }
+
+            const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '{"count": 0}');
+            attempts.count++;
+            attempts.lastAttempt = Date.now();
+            
+            localStorage.setItem('loginAttempts', JSON.stringify(attempts));
+
+            if (attempts.count >= AUTH_CONFIG.maxAttempts) {
+                const lockoutUntil = Date.now() + AUTH_CONFIG.lockoutDuration;
+                localStorage.setItem('loginLockout', JSON.stringify({ until: lockoutUntil }));
+                showError(`Too many failed attempts. Account locked for 15 minutes.`);
+                document.getElementById('login-btn').disabled = true;
+            } else {
+                showError(`Invalid credentials. ${AUTH_CONFIG.maxAttempts - attempts.count} attempts remaining.`);
+            }
+        }
+
+        // Handle login
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (checkLockout()) return;
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('remember-me').checked;
+            const loginBtn = document.getElementById('login-btn');
+
+            // Show loading state
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading-spinner"></span>Signing in...';
+
+            // Simulate network delay (remove in production)
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // Authenticate
+            const user = AUTH_CONFIG.users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                recordLoginAttempt(true);
+
+                // Create session
+                const sessionData = {
+                    username: user.username,
+                    role: user.role,
+                    loginTime: Date.now(),
+                    expiresAt: Date.now() + AUTH_CONFIG.sessionDuration
+                };
+
+                localStorage.setItem('audioPlayerSession', JSON.stringify(sessionData));
+
+                // Store remember me preference
+                if (rememberMe) {
+                    localStorage.setItem('rememberMe', username);
+                }
+
+                // Redirect to main app
+                window.location.href = 'index.html';
+            } else {
+                recordLoginAttempt(false);
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Sign In';
+            }
+        });
+
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.querySelector('.toggle-password');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            
+            setTimeout(() => {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        // Forgot password (placeholder)
+        function showForgotPassword() {
+            alert('Password reset feature coming soon!\n\nFor demo purposes, use:\nUsername: admin\nPassword: music123');
+        }
+
+        // Auto-fill remembered username
+        window.addEventListener('DOMContentLoaded', () => {
+            checkExistingSession();
+            checkLockout();
+            
+            const remembered = localStorage.getItem('rememberMe');
+            if (remembered) {
+                document.getElementById('username').value = remembered;
+                document.getElementById('remember-me').checked = true;
+                document.getElementById('password').focus();
+            }
+        });
+
+        // Prevent form submission on Enter in password field (already handled by form submit)
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('login-form').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
