@@ -4,20 +4,28 @@
  */
 
 function openFolderBrowser() {
-    document.getElementById('folder-browser-modal').classList.remove('hidden');
-    AppState.currentPath = [];
-    AppState.currentFolder = null;
-    updateBreadcrumb();
+    const modal = document.getElementById('folder-browser-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        AppState.currentPath = [];
+        AppState.currentFolder = null;
+        updateBreadcrumb();
+    }
 }
 
 function closeFolderBrowser() {
-    document.getElementById('folder-browser-modal').classList.add('hidden');
-    AppState.folderStructure = null;
+    const modal = document.getElementById('folder-browser-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        AppState.folderStructure = null;
+    }
 }
 
 async function browseDriveFolders(forceRefresh = false) {
     const folderList = document.getElementById('folder-list');
     const browseBtn = document.getElementById('drive-browse-btn');
+    
+    if (!folderList || !browseBtn) return;
     
     browseBtn.disabled = true;
     browseBtn.innerHTML = '<div class="loading-spinner inline-block mr-2"></div>Loading...';
@@ -38,15 +46,15 @@ async function browseDriveFolders(forceRefresh = false) {
         
         const url = `${AppState.workerUrl}?mode=folders${forceRefresh ? '&refresh=true' : ''}`;
         
-        // SECURITY: Send required headers
-        const response = await fetch(url, {
+        // SECURITY: Send required headers with retry logic
+        const response = await fetchWithRetry(url, {
             method: 'GET',
             headers: {
                 'X-API-Key': AppState.apiKey,
                 'Content-Type': 'application/json'
             },
             signal: controller.signal,
-            credentials: 'omit' // Don't send cookies
+            credentials: 'omit'
         });
         
         clearTimeout(timeoutId);
@@ -122,6 +130,8 @@ function renderFolderView() {
     const folders = Object.entries(AppState.currentFolder.folders || {});
     const files = AppState.currentFolder.files || [];
     const folderList = document.getElementById('folder-list');
+    
+    if (!folderList) return;
     
     updateBreadcrumb();
     updateFolderStats(folders.length, files.length);
@@ -215,18 +225,24 @@ function loadFolderOnly(folderName, folderData) {
 
 function updateBreadcrumb() {
     const breadcrumb = document.getElementById('current-path');
-    breadcrumb.textContent = AppState.currentPath.length > 0 ? 
-        AppState.currentPath.join(' / ') : '/';
+    if (breadcrumb) {
+        breadcrumb.textContent = AppState.currentPath.length > 0 ? 
+            AppState.currentPath.join(' / ') : '/';
+    }
 }
 
 function updateFolderStats(folderCount, fileCount) {
     const folderStats = document.getElementById('folder-stats');
-    folderStats.textContent = `${folderCount} folder${folderCount !== 1 ? 's' : ''}, ${fileCount} audio file${fileCount !== 1 ? 's' : ''}`;
+    if (folderStats) {
+        folderStats.textContent = `${folderCount} folder${folderCount !== 1 ? 's' : ''}, ${fileCount} audio file${fileCount !== 1 ? 's' : ''}`;
+    }
 }
 
 function updateFolderBadge() {
     const currentFolderBadge = document.getElementById('current-folder-badge');
     const folderNameDisplay = document.getElementById('folder-name-display');
+    
+    if (!currentFolderBadge || !folderNameDisplay) return;
     
     if (AppState.currentFolderMode) {
         currentFolderBadge.classList.remove('hidden');
@@ -244,22 +260,3 @@ function clearFolderMode() {
     filterPlaylist();
     showToast('Folder mode cleared');
 }
-
-try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
-        
-        const url = `${AppState.workerUrl}?mode=folders${forceRefresh ? '&refresh=true' : ''}`;
-        
-        // SECURITY: Send required headers with retry logic
-        const response = await fetchWithRetry(url, {
-            method: 'GET',
-            headers: {
-                'X-API-Key': AppState.apiKey,
-                'Content-Type': 'application/json'
-            },
-            signal: controller.signal,
-            credentials: 'omit'
-        });
-        
-        clearTimeout(timeoutId);
