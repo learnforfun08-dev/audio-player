@@ -162,183 +162,103 @@
             </p>
         </div>
     </div>
-
+    
     <script>
-        // Configuration
-        const AUTH_CONFIG = {
-            // Store users in localStorage (for demo - use backend in production)
-            users: [
-                { username: 'admin', password: 'music123', role: 'admin' },
-                { username: 'user', password: 'user123', role: 'user' }
-            ],
-            sessionDuration: 24 * 60 * 60 * 1000, // 24 hours
-            maxAttempts: 5,
-            lockoutDuration: 15 * 60 * 1000 // 15 minutes
-        };
+    // Configuration
+    const WORKER_URL = 'https://audio-player-proxy.shubhamdocument45.workers.dev';
 
-        // Check if already logged in
-        function checkExistingSession() {
-            const session = localStorage.getItem('audioPlayerSession');
-            if (session) {
-                try {
-                    const sessionData = JSON.parse(session);
-                    const now = Date.now();
-                    
-                    if (now < sessionData.expiresAt) {
-                        // Valid session exists
-                        window.location.href = 'index.html';
-                    } else {
-                        // Session expired
-                        localStorage.removeItem('audioPlayerSession');
-                    }
-                } catch (e) {
+    // Check existing session
+    function checkExistingSession() {
+        const session = localStorage.getItem('audioPlayerSession');
+        if (session) {
+            try {
+                const sessionData = JSON.parse(session);
+                if (Date.now() < sessionData.expiresAt) {
+                    window.location.href = 'index.html';
+                } else {
                     localStorage.removeItem('audioPlayerSession');
                 }
+            } catch (e) {
+                localStorage.removeItem('audioPlayerSession');
             }
         }
+    }
 
-        // Check for lockout
-        function checkLockout() {
-            const lockout = localStorage.getItem('loginLockout');
-            if (lockout) {
-                const lockoutData = JSON.parse(lockout);
-                const now = Date.now();
-                
-                if (now < lockoutData.until) {
-                    const remainingMinutes = Math.ceil((lockoutData.until - now) / 60000);
-                    showError(`Too many failed attempts. Try again in ${remainingMinutes} minutes.`);
-                    document.getElementById('login-btn').disabled = true;
-                    return true;
-                } else {
-                    localStorage.removeItem('loginLockout');
-                    localStorage.removeItem('loginAttempts');
-                }
-            }
-            return false;
-        }
+    // Login form handler
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const loginBtn = document.getElementById('login-btn');
 
-        // Login attempt tracking
-        function recordLoginAttempt(success) {
-            if (success) {
-                localStorage.removeItem('loginAttempts');
-                localStorage.removeItem('loginLockout');
-                return;
-            }
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<span class="loading-spinner"></span>Signing in...';
 
-            const attempts = JSON.parse(localStorage.getItem('loginAttempts') || '{"count": 0}');
-            attempts.count++;
-            attempts.lastAttempt = Date.now();
-            
-            localStorage.setItem('loginAttempts', JSON.stringify(attempts));
+        try {
+            const response = await fetch(`${WORKER_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-            if (attempts.count >= AUTH_CONFIG.maxAttempts) {
-                const lockoutUntil = Date.now() + AUTH_CONFIG.lockoutDuration;
-                localStorage.setItem('loginLockout', JSON.stringify({ until: lockoutUntil }));
-                showError(`Too many failed attempts. Account locked for 15 minutes.`);
-                document.getElementById('login-btn').disabled = true;
-            } else {
-                showError(`Invalid credentials. ${AUTH_CONFIG.maxAttempts - attempts.count} attempts remaining.`);
-            }
-        }
+            const result = await response.json();
 
-        // Handle login
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (checkLockout()) return;
-
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const rememberMe = document.getElementById('remember-me').checked;
-            const loginBtn = document.getElementById('login-btn');
-
-            // Show loading state
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="loading-spinner"></span>Signing in...';
-
-            // Simulate network delay (remove in production)
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            // Authenticate
-            const user = AUTH_CONFIG.users.find(u => u.username === username && u.password === password);
-
-            if (user) {
-                recordLoginAttempt(true);
-
-                // Create session
+            if (response.ok && result.success) {
                 const sessionData = {
-                    username: user.username,
-                    role: user.role,
+                    token: result.token,
+                    username: result.user.username,
+                    role: result.user.role,
                     loginTime: Date.now(),
-                    expiresAt: Date.now() + AUTH_CONFIG.sessionDuration
+                    expiresAt: Date.now() + (result.expiresIn * 1000)
                 };
 
                 localStorage.setItem('audioPlayerSession', JSON.stringify(sessionData));
-
-                // Store remember me preference
-                if (rememberMe) {
-                    localStorage.setItem('rememberMe', username);
-                }
-
-                // Redirect to main app
                 window.location.href = 'index.html';
             } else {
-                recordLoginAttempt(false);
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = 'Sign In';
+                showError(result.error || 'Login failed');
             }
-        });
-
-        // Toggle password visibility
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleBtn = document.querySelector('.toggle-password');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleBtn.textContent = '🙈';
-            } else {
-                passwordInput.type = 'password';
-                toggleBtn.textContent = '👁️';
-            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showError('Connection error. Check if Worker is running.');
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Sign In';
         }
+    });
 
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('show');
-            
-            setTimeout(() => {
-                errorDiv.classList.remove('show');
-            }, 5000);
+    // Toggle password visibility
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const toggleBtn = document.querySelector('.toggle-password');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleBtn.textContent = '🙈';
+        } else {
+            passwordInput.type = 'password';
+            toggleBtn.textContent = '👁️';
         }
+    }
 
-        // Forgot password (placeholder)
-        function showForgotPassword() {
-            alert('Password reset feature coming soon!\n\nFor demo purposes, use:\nUsername: admin\nPassword: music123');
-        }
+    // Show error message
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.classList.add('show');
+        
+        setTimeout(() => {
+            errorDiv.classList.remove('show');
+        }, 5000);
+    }
 
-        // Auto-fill remembered username
-        window.addEventListener('DOMContentLoaded', () => {
-            checkExistingSession();
-            checkLockout();
-            
-            const remembered = localStorage.getItem('rememberMe');
-            if (remembered) {
-                document.getElementById('username').value = remembered;
-                document.getElementById('remember-me').checked = true;
-                document.getElementById('password').focus();
-            }
-        });
+    // Forgot password placeholder
+    function showForgotPassword() {
+        alert('Contact administrator for password reset.\n\nDemo: admin / music123');
+    }
 
-        // Prevent form submission on Enter in password field (already handled by form submit)
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                document.getElementById('login-form').dispatchEvent(new Event('submit'));
-            }
-        });
-    </script>
+    // Initialize
+    window.addEventListener('DOMContentLoaded', checkExistingSession);
+</script>
 </body>
 </html>
