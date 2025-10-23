@@ -37,17 +37,22 @@
     }
 
     function interceptFetch(token) {
-        const originalFetch = window.fetch;
-        window.fetch = function(...args) {
-            if (args[0].includes(WORKER_URL)) {
-                const options = args[1] || {};
-                options.headers = options.headers || {};
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+        // Check if it's a Worker request
+        if (typeof url === 'string' && url.includes('shubhamdocument45.workers.dev')) {
+            options.headers = options.headers || {};
+            
+            // Handle different header formats
+            if (options.headers instanceof Headers) {
+                options.headers.append('Authorization', `Bearer ${token}`);
+            } else {
                 options.headers['Authorization'] = `Bearer ${token}`;
-                args[1] = options;
             }
-            return originalFetch.apply(this, args);
-        };
-    }
+        }
+        return originalFetch(url, options);
+    };
+}
 
     function redirectToLogin() {
         window.location.href = 'login.html';
